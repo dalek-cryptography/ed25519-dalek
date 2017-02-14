@@ -5,6 +5,7 @@ authors = ["Isis Lovecruft <isis@torproject.org>"]
 readme = "README.md"
 license = "CC0-1.0"
 repository = "https://code.ciph.re/isis/ed25519-dalek"
+categories = ["cryptography", "no-std"]
 keywords = ["cryptography", "ed25519", "signature", "ECC"]
 description = "Fast and efficient ed25519 signing and verification."
 exclude = [ ".gitignore", "TESTVECTORS" ]
