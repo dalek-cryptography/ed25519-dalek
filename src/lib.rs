@@ -60,9 +60,9 @@
 //! ```
 
 #![no_std]
-#![feature(rand)]
+#![cfg_attr(std, feature(rand))]
 #![allow(unused_features)]
-#![feature(test)]
+#![cfg_attr(test, feature(test))]
 
 #[macro_use]
 extern crate arrayref;
