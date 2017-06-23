@@ -24,7 +24,7 @@ use curve25519_dalek::constants;
 use curve25519_dalek::curve::CompressedEdwardsY;
 use curve25519_dalek::curve::ExtendedPoint;
 use curve25519_dalek::scalar::Scalar;
-use curve25519_dalek::subtle::arrays_equal_ct;
+use curve25519_dalek::subtle::arrays_equal;
 
 /// The length of an ed25519 `Signature`, in bytes.
 pub const SIGNATURE_LENGTH: usize = 64;
@@ -278,7 +278,7 @@ impl PublicKey {
         digest_reduced = Scalar::reduce(&digest);
         r = &(&digest_reduced * &a) + &(&Scalar(*top_half) * &constants::ED25519_BASEPOINT);
 
-        if arrays_equal_ct(bottom_half, &r.compress_edwards().to_bytes()) == 1 {
+        if arrays_equal(bottom_half, &r.compress_edwards().to_bytes()) == 1 {
             return true
         } else {
             return false
