@@ -17,6 +17,7 @@ use rand::Rng;
 
 use digest::Input;
 use digest::FixedOutput;
+use digest::BlockInput;
 use generic_array::typenum::U64;
 
 use curve25519_dalek::constants;
@@ -136,7 +137,7 @@ impl SecretKey {
 
     /// Sign a message with this keypair's secret key.
     pub fn sign<D>(&self, message: &[u8]) -> Signature
-            where D: FixedOutput<OutputSize = U64> + Default + Input {
+            where D: FixedOutput<OutputSize = U64> + Default + Input + BlockInput {
 
         let mut h: D = D::default();
         let mut hash: [u8; 64] = [0u8; 64];
@@ -150,8 +151,8 @@ impl SecretKey {
 
         let secret_key: &[u8; 32] = array_ref!(&self.0,  0, 32);
         let public_key: &[u8; 32] = array_ref!(&self.0, 32, 32);
-
-        h.digest(secret_key);
+        
+        h.process(secret_key);
         hash.copy_from_slice(h.fixed_result().as_slice());
 
         expanded_key_secret = Scalar(*array_ref!(&hash, 0, 32));
@@ -160,8 +161,8 @@ impl SecretKey {
         expanded_key_secret[31] |=  64;
 
         h = D::default();
-        h.digest(&hash[32..]);
-        h.digest(&message);
+        h.process(&hash[32..]);
+        h.process(&message);
         hash.copy_from_slice(h.fixed_result().as_slice());
 
         mesg_digest = Scalar::reduce(&hash);
@@ -169,9 +170,9 @@ impl SecretKey {
         r = &mesg_digest * &constants::ED25519_BASEPOINT;
 
         h = D::default();
-        h.digest(&r.compress_edwards().to_bytes()[..]);
-        h.digest(public_key);
-        h.digest(&message);
+        h.process(&r.compress_edwards().to_bytes()[..]);
+        h.process(public_key);
+        h.process(&message);
         hash.copy_from_slice(h.fixed_result().as_slice());
 
         hram_digest = Scalar::reduce(&hash);
@@ -268,9 +269,9 @@ impl PublicKey {
         let top_half:    &[u8; 32] = array_ref!(&signature.0, 32, 32);
         let bottom_half: &[u8; 32] = array_ref!(&signature.0,  0, 32);
 
-        h.digest(&bottom_half[..]);
-        h.digest(&self.to_bytes());
-        h.digest(&message);
+        h.process(&bottom_half[..]);
+        h.process(&self.to_bytes());
+        h.process(&message);
 
         let digest_bytes = h.fixed_result();
         digest = *array_ref!(digest_bytes, 0, 64);
@@ -344,7 +345,7 @@ impl Keypair {
 
         cspring.fill_bytes(&mut t);
 
-        h.digest(&t);
+        h.process(&t);
         hash.copy_from_slice(h.fixed_result().as_slice());
 
         digest = array_mut_ref!(&mut hash, 0, 32);
@@ -368,7 +369,7 @@ impl Keypair {
 
     /// Sign a message with this keypair's secret key.
     pub fn sign<D>(&self, message: &[u8]) -> Signature
-            where D: FixedOutput<OutputSize = U64> + Default + Input {
+            where D: FixedOutput<OutputSize = U64> + Default + Input + BlockInput {
         self.secret.sign::<D>(message)
     }
 
