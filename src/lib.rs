@@ -127,7 +127,7 @@ extern crate std;
 extern crate sha2;
 
 #[cfg(test)]
-extern crate rustc_serialize;
+extern crate hex;
 
 #[cfg(all(test, feature = "bench"))]
 extern crate test;
