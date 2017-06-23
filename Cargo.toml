@@ -19,7 +19,7 @@ travis-ci = { repository = "isislovecruft/ed25519-dalek", branch = "master"}
 arrayref = "0.3.3"
 
 [dependencies.curve25519-dalek]
-version = "^0.7"
+version = "^0.9"
 default-features = false
 
 [dependencies.rand]
@@ -27,15 +27,15 @@ optional = true
 version = "^0.3"
 
 [dependencies.digest]
-version = "^0.5"
+version = "^0.6"
 
 [dependencies.generic-array]
 # same version that digest depends on
 version = "^0.6"
 
 [dev-dependencies]
-rustc-serialize = "0.3"
-sha2 = "^0.5"
+hex = "0.2"
+sha2 = "^0.6"
 
 [features]
 default = ["std"]
