@@ -8,38 +8,38 @@
 // Authors:
 // - Isis Agora Lovecruft <isis@patternsinthevoid.net>
 
-//! A Rust implementation of ed25519 EdDSA key generation, signing, and
+//! A Rust implementation of ed25519 `EdDSA` key generation, signing, and
 //! verification.
 
 use core::fmt::Debug;
-
-#[cfg(feature = "std")]
-use rand::Rng;
-
-use digest::BlockInput;
-use digest::Digest;
-use digest::Input;
-use digest::FixedOutput;
-
-use generic_array::typenum::U64;
 
 use curve25519_dalek::constants;
 use curve25519_dalek::edwards::CompressedEdwardsY;
 use curve25519_dalek::edwards::ExtendedPoint;
 use curve25519_dalek::scalar::Scalar;
 
+use digest::BlockInput;
+use digest::Digest;
+use digest::FixedOutput;
+use digest::Input;
+
+use generic_array::typenum::U64;
+
+#[cfg(feature = "std")]
+use rand::Rng;
+
 use subtle::slices_equal;
 
-/// The length of an ed25519 EdDSA `Signature`, in bytes.
+/// The length of an ed25519 `EdDSA` `Signature`, in bytes.
 pub const SIGNATURE_LENGTH: usize = 64;
 
-/// The length of an ed25519 EdDSA `SecretKey`, in bytes.
+/// The length of an ed25519 `EdDSA` `SecretKey`, in bytes.
 pub const SECRET_KEY_LENGTH: usize = 32;
 
-/// The length of an ed25519 EdDSA `PublicKey`, in bytes.
+/// The length of an ed25519 `EdDSA` `PublicKey`, in bytes.
 pub const PUBLIC_KEY_LENGTH: usize = 32;
 
-/// An EdDSA signature.
+/// An `EdDSA` signature.
 ///
 /// # Note
 ///
@@ -51,7 +51,9 @@ pub const PUBLIC_KEY_LENGTH: usize = 32;
 pub struct Signature(pub [u8; SIGNATURE_LENGTH]);
 
 impl Clone for Signature {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl Debug for Signature {
@@ -70,11 +72,7 @@ impl PartialEq for Signature {
             equal |= self.0[i] ^ other.0[i];
         }
 
-        if equal == 0 {
-            return true;
-        } else {
-            return false;
-        }
+        equal == 0
     }
 }
 
@@ -87,7 +85,7 @@ impl Signature {
 
     /// View this `Signature` as a byte array.
     #[inline]
-    pub fn as_bytes<'a>(&'a self) -> &'a [u8; SIGNATURE_LENGTH] {
+    pub fn as_bytes(&self) -> &[u8; SIGNATURE_LENGTH] {
         &self.0
     }
 
@@ -98,7 +96,7 @@ impl Signature {
     }
 }
 
-/// An EdDSA secret key.
+/// An `EdDSA` secret key.
 #[repr(C)]
 pub struct SecretKey(pub [u8; SECRET_KEY_LENGTH]);
 
@@ -117,7 +115,7 @@ impl SecretKey {
 
     /// View this secret key as a byte array.
     #[inline]
-    pub fn as_bytes<'a>(&'a self) -> &'a [u8; SECRET_KEY_LENGTH] {
+    pub fn as_bytes(&self) -> &[u8; SECRET_KEY_LENGTH] {
         &self.0
     }
 
@@ -137,7 +135,8 @@ impl SecretKey {
     ///    068, 073, 197, 105, 123, 050, 105, 025,
     ///    112, 059, 172, 003, 028, 174, 127, 096, ];
     ///
-    /// let secret_key: SecretKey = SecretKey::from_bytes(&secret_key_bytes[..]);
+    /// let secret_key: SecretKey =
+    /// SecretKey::from_bytes(&secret_key_bytes[..]);
     /// # }
     /// ```
     ///
@@ -194,7 +193,8 @@ impl SecretKey {
     /// # let mut csprng: OsRng = OsRng::new().unwrap();
     /// # let secret_key: SecretKey = SecretKey::generate(&mut csprng);
     ///
-    /// let public_key: PublicKey = PublicKey::from_secret::<Sha512>(&secret_key);
+    /// let public_key: PublicKey =
+    /// PublicKey::from_secret::<Sha512>(&secret_key);
     /// # }
     /// ```
     ///
@@ -237,7 +237,7 @@ impl PublicKey {
 
     /// View this public key as a byte array.
     #[inline]
-    pub fn as_bytes<'a>(&'a self) -> &'a [u8; PUBLIC_KEY_LENGTH] {
+    pub fn as_bytes(&self) -> &[u8; PUBLIC_KEY_LENGTH] {
         &(self.0).0
     }
 
@@ -246,7 +246,8 @@ impl PublicKey {
     /// # Warning
     ///
     /// The caller is responsible for ensuring that the bytes passed into this
-    /// method actually represent a `curve25519_dalek::curve::CompressedEdwardsY`
+    /// method actually represent a
+    /// `curve25519_dalek::curve::CompressedEdwardsY`
     /// and that said compressed point is actually a point on the curve.
     ///
     /// # Example
@@ -258,8 +259,10 @@ impl PublicKey {
     /// use ed25519_dalek::PUBLIC_KEY_LENGTH;
     ///
     /// let public_key_bytes: [u8; PUBLIC_KEY_LENGTH] = [
-    ///    215,  90, 152,   1, 130, 177,  10, 183, 213,  75, 254, 211, 201, 100,   7,  58,
-    ///     14, 225, 114, 243, 218, 166,  35,  37, 175,   2,  26, 104, 247,   7,   81, 26];
+    /// 215,  90, 152,   1, 130, 177,  10, 183, 213,  75, 254, 211, 201,
+    /// 100,   7,  58,
+    /// 14, 225, 114, 243, 218, 166,  35,  37, 175,   2,  26, 104, 247,
+    /// 7,   81, 26];
     ///
     /// let public_key: PublicKey = PublicKey::from_bytes(&public_key_bytes);
     /// # }
@@ -273,7 +276,8 @@ impl PublicKey {
         PublicKey(CompressedEdwardsY(*array_ref!(bytes, 0, 32)))
     }
 
-    /// Convert this public key to its underlying extended twisted Edwards coordinate.
+    /// Convert this public key to its underlying extended twisted Edwards
+    /// coordinate.
     #[inline]
     fn decompress(&self) -> Option<ExtendedPoint> {
         self.0.decompress()
@@ -283,22 +287,26 @@ impl PublicKey {
     #[cfg(feature = "std")]
     #[allow(unused_assignments)]
     pub fn from_secret<D>(secret_key: &SecretKey) -> PublicKey
-            where D: Digest<OutputSize = U64> + Default {
+    where
+        D: Digest<OutputSize = U64> + Default,
+    {
 
-        let mut h:           D = D::default();
+        let mut h: D = D::default();
         let mut hash: [u8; 64] = [0u8; 64];
-        let     pk:   [u8; 32];
-        let mut digest: &mut [u8; 32];
+        let pk: [u8; 32];
+        let digest: &mut [u8; 32];
 
         h.input(secret_key.as_bytes());
         hash.copy_from_slice(h.fixed_result().as_slice());
 
         digest = array_mut_ref!(&mut hash, 0, 32);
-        digest[0]  &= 248;
+        digest[0] &= 248;
         digest[31] &= 127;
         digest[31] |= 64;
 
-        pk = (&Scalar(*digest) * &constants::ED25519_BASEPOINT_TABLE).compress_edwards().to_bytes();
+        pk = (&Scalar(*digest) * &constants::ED25519_BASEPOINT_TABLE)
+            .compress_edwards()
+            .to_bytes();
 
         PublicKey(CompressedEdwardsY(pk))
     }
@@ -310,13 +318,15 @@ impl PublicKey {
     /// Returns true if the signature was successfully verified, and
     /// false otherwise.
     pub fn verify<D>(&self, message: &[u8], signature: &Signature) -> bool
-            where D: Digest<OutputSize = U64> + Default {
+    where
+        D: Digest<OutputSize = U64> + Default,
+    {
 
         use curve25519_dalek::edwards::vartime;
 
         let mut h: D = D::default();
         let mut a: ExtendedPoint;
-        let ao:  Option<ExtendedPoint>;
+        let ao: Option<ExtendedPoint>;
         let r: ExtendedPoint;
         let digest: [u8; 64];
         let digest_reduced: Scalar;
@@ -333,23 +343,19 @@ impl PublicKey {
         }
         a = -(&a);
 
-        let top_half:    &[u8; 32] = array_ref!(&signature.0, 32, 32);
-        let bottom_half: &[u8; 32] = array_ref!(&signature.0,  0, 32);
+        let top_half: &[u8; 32] = array_ref!(&signature.0, 32, 32);
+        let bottom_half: &[u8; 32] = array_ref!(&signature.0, 0, 32);
 
         h.input(&bottom_half[..]);
         h.input(&self.to_bytes());
-        h.input(&message);
+        h.input(message);
 
         let digest_bytes = h.fixed_result();
         digest = *array_ref!(digest_bytes, 0, 64);
         digest_reduced = Scalar::reduce(&digest);
         r = vartime::double_scalar_mult_basepoint(&digest_reduced, &a, &Scalar(*top_half));
 
-        if slices_equal(bottom_half, &r.compress_edwards().to_bytes()) == 1 {
-            return true
-        } else {
-            return false
-        }
+        slices_equal(bottom_half, &r.compress_edwards().to_bytes()) == 1
     }
 }
 
@@ -383,8 +389,10 @@ impl Keypair {
     ///
     /// A `Keypair`.
     pub fn from_bytes<'a>(public: &'a [u8; 32], secret: &'a [u8; 32]) -> Keypair {
-        Keypair{ public: PublicKey::from_bytes(public),
-                 secret: SecretKey::from_bytes(secret), }
+        Keypair {
+            public: PublicKey::from_bytes(public),
+            secret: SecretKey::from_bytes(secret),
+        }
     }
 
     /// Generate an ed25519 keypair.
@@ -422,16 +430,23 @@ impl Keypair {
     /// Other suitable hash functions include Keccak-512 and Blake2b-512.
     #[cfg(feature = "std")]
     pub fn generate<D>(csprng: &mut Rng) -> Keypair
-            where D: Digest<OutputSize = U64> + Default {
+    where
+        D: Digest<OutputSize = U64> + Default,
+    {
         let sk: SecretKey = SecretKey::generate(csprng);
         let pk: PublicKey = PublicKey::from_secret::<D>(&sk);
 
-        Keypair{ public: pk, secret: sk }
+        Keypair {
+            public: pk,
+            secret: sk,
+        }
     }
 
     /// Sign a message with this keypair's secret key.
     pub fn sign<D>(&self, message: &[u8]) -> Signature
-            where D: Digest<OutputSize = U64> + Default {
+    where
+        D: Digest<OutputSize = U64> + Default,
+    {
 
         let mut h: D = D::default();
         let mut hash: [u8; 64] = [0u8; 64];
@@ -450,13 +465,13 @@ impl Keypair {
         hash.copy_from_slice(h.fixed_result().as_slice());
 
         expanded_key_secret = Scalar(*array_ref!(&hash, 0, 32));
-        expanded_key_secret[0]  &= 248;
-        expanded_key_secret[31] &=  63;
-        expanded_key_secret[31] |=  64;
+        expanded_key_secret[0] &= 248;
+        expanded_key_secret[31] &= 63;
+        expanded_key_secret[31] |= 64;
 
         h = D::default();
         h.input(&hash[32..]);
-        h.input(&message);
+        h.input(message);
         hash.copy_from_slice(h.fixed_result().as_slice());
 
         mesg_digest = Scalar::reduce(&hash);
@@ -466,7 +481,7 @@ impl Keypair {
         h = D::default();
         h.input(&r.compress_edwards().to_bytes()[..]);
         h.input(public_key);
-        h.input(&message);
+        h.input(message);
         hash.copy_from_slice(h.fixed_result().as_slice());
 
         hram_digest = Scalar::reduce(&hash);
@@ -481,26 +496,29 @@ impl Keypair {
 
     /// Verify a signature on a message with this keypair's public key.
     pub fn verify<D>(&self, message: &[u8], signature: &Signature) -> bool
-            where D: FixedOutput<OutputSize = U64> + BlockInput + Default + Input {
+    where
+        D: FixedOutput<OutputSize = U64> + BlockInput + Default + Input,
+    {
         self.public.verify::<D>(message, signature)
     }
 }
 
 #[cfg(test)]
 mod test {
-    use std::io::BufReader;
-    use std::io::BufRead;
-    use std::fs::File;
-    use std::string::String;
-    use std::vec::Vec;
+    use super::*;
     use curve25519_dalek::edwards::ExtendedPoint;
     use rand::OsRng;
     use rustc_serialize::hex::FromHex;
     use sha2::Sha512;
-    use super::*;
+    use std::fs::File;
+    use std::io::BufRead;
+    use std::io::BufReader;
+    use std::string::String;
+    use std::vec::Vec;
 
     #[test]
-    fn unmarshal_marshal() {  // TestUnmarshalMarshal
+    fn unmarshal_marshal() {
+        // TestUnmarshalMarshal
         let mut cspring: OsRng;
         let mut keypair: Keypair;
         let mut x: Option<ExtendedPoint>;
@@ -525,26 +543,33 @@ mod test {
     }
 
     #[test]
-    fn sign_verify() {  // TestSignVerify
+    fn sign_verify() {
+        // TestSignVerify
         let mut cspring: OsRng;
         let keypair: Keypair;
         let good_sig: Signature;
-        let bad_sig:  Signature;
+        let bad_sig: Signature;
 
         let good: &[u8] = "test message".as_bytes();
-        let bad:  &[u8] = "wrong message".as_bytes();
+        let bad: &[u8] = "wrong message".as_bytes();
 
-        cspring  = OsRng::new().unwrap();
-        keypair  = Keypair::generate::<Sha512>(&mut cspring);
+        cspring = OsRng::new().unwrap();
+        keypair = Keypair::generate::<Sha512>(&mut cspring);
         good_sig = keypair.sign::<Sha512>(&good);
-        bad_sig  = keypair.sign::<Sha512>(&bad);
+        bad_sig = keypair.sign::<Sha512>(&bad);
 
-        assert!(keypair.verify::<Sha512>(&good, &good_sig) == true,
-                "Verification of a valid signature failed!");
-        assert!(keypair.verify::<Sha512>(&good, &bad_sig)  == false,
-                "Verification of a signature on a different message passed!");
-        assert!(keypair.verify::<Sha512>(&bad,  &good_sig) == false,
-                "Verification of a signature on a different message passed!");
+        assert!(
+            keypair.verify::<Sha512>(&good, &good_sig) == true,
+            "Verification of a valid signature failed!"
+        );
+        assert!(
+            keypair.verify::<Sha512>(&good, &bad_sig) == false,
+            "Verification of a signature on a different message passed!"
+        );
+        assert!(
+            keypair.verify::<Sha512>(&bad, &good_sig) == false,
+            "Verification of a signature on a different message passed!"
+        );
     }
 
     // TESTVECTORS is taken from sign.input.gz in agl's ed25519 Golang
@@ -553,15 +578,18 @@ mod test {
     #[cfg(test)]
     #[cfg(not(release))]
     #[test]
-    fn golden() { // TestGolden
+    fn golden() {
+        // TestGolden
         let mut line: String;
         let mut lineno: usize = 0;
 
         let f = File::open("TESTVECTORS");
         if f.is_err() {
-            println!("This test is only available when the code has been cloned \
+            println!(
+                "This test is only available when the code has been cloned \
                       from the git repository, since the TESTVECTORS file is large \
-                      and is therefore not included within the distributed crate.");
+                      and is therefore not included within the distributed crate."
+            );
             panic!();
         }
         let file = BufReader::new(f.unwrap());
@@ -575,32 +603,36 @@ mod test {
 
             let sec_bytes: &[u8] = &parts[0].from_hex().unwrap();
             let pub_bytes: &[u8] = &parts[1].from_hex().unwrap();
-            let message:   &[u8] = &parts[2].from_hex().unwrap();
+            let message: &[u8] = &parts[2].from_hex().unwrap();
             let sig_bytes: &[u8] = &parts[3].from_hex().unwrap();
 
-		    // The signatures in the test vectors also include the message
-		    // at the end, but we just want R and S.
+            // The signatures in the test vectors also include the message
+            // at the end, but we just want R and S.
             let sig1: Signature = Signature::from_bytes(sig_bytes);
 
             let keypair: Keypair = Keypair::from_bytes(
                 array_ref!(*pub_bytes, 0, PUBLIC_KEY_LENGTH),
-                array_ref!(*sec_bytes, 0, SECRET_KEY_LENGTH));
+                array_ref!(*sec_bytes, 0, SECRET_KEY_LENGTH),
+            );
 
             let sig2: Signature = keypair.sign::<Sha512>(&message);
 
             assert!(sig1 == sig2, "Signature bytes not equal on line {}", lineno);
-            assert!(keypair.verify::<Sha512>(&message, &sig2),
-                    "Signature verification failed on line {}", lineno);
+            assert!(
+                keypair.verify::<Sha512>(&message, &sig2),
+                "Signature verification failed on line {}",
+                lineno
+            );
         }
     }
 }
 
 #[cfg(all(test, feature = "bench"))]
 mod bench {
-    use test::Bencher;
+    use super::*;
     use rand::OsRng;
     use sha2::Sha512;
-    use super::*;
+    use test::Bencher;
 
     /// A fake RNG which simply returns zeroes.
     struct ZeroRng;
@@ -612,10 +644,12 @@ mod bench {
     }
 
     impl Rng for ZeroRng {
-        fn next_u32(&mut self) -> u32 { 0u32 }
+        fn next_u32(&mut self) -> u32 {
+            0u32
+        }
 
         fn fill_bytes(&mut self, bytes: &mut [u8]) {
-            for i in 0 .. bytes.len() {
+            for i in 0..bytes.len() {
                 bytes[i] = 0;
             }
         }
@@ -627,7 +661,7 @@ mod bench {
         let keypair: Keypair = Keypair::generate::<Sha512>(&mut cspring);
         let msg: &[u8] = b"";
 
-        b.iter(| | keypair.sign::<Sha512>(msg));
+        b.iter(|| keypair.sign::<Sha512>(msg));
     }
 
     #[bench]
@@ -637,25 +671,57 @@ mod bench {
         let msg: &[u8] = b"";
         let sig: Signature = keypair.sign::<Sha512>(msg);
 
-        b.iter(| | keypair.verify::<Sha512>(msg, &sig));
+        b.iter(|| keypair.verify::<Sha512>(msg, &sig));
     }
 
     #[bench]
     fn key_generation(b: &mut Bencher) {
         let mut rng: ZeroRng = ZeroRng::new();
 
-        b.iter(| | Keypair::generate::<Sha512>(&mut rng));
+        b.iter(|| Keypair::generate::<Sha512>(&mut rng));
     }
 
     #[bench]
     fn underlying_scalar_mult_basepoint(b: &mut Bencher) {
         use curve25519_dalek::constants::ED25519_BASEPOINT_TABLE;
 
-        let scalar: Scalar = Scalar([  20, 130, 129, 196, 247, 182, 211, 102,
-                                       11, 168, 169, 131, 159,  69, 126,  35,
-                                      109, 193, 175,  54, 118, 234, 138,  81,
-                                       60, 183,  80, 186,  92, 248, 132,  13, ]);
+        let scalar: Scalar = Scalar(
+            [
+                20,
+                130,
+                129,
+                196,
+                247,
+                182,
+                211,
+                102,
+                11,
+                168,
+                169,
+                131,
+                159,
+                69,
+                126,
+                35,
+                109,
+                193,
+                175,
+                54,
+                118,
+                234,
+                138,
+                81,
+                60,
+                183,
+                80,
+                186,
+                92,
+                248,
+                132,
+                13,
+            ],
+        );
 
-        b.iter(| | &scalar * &ED25519_BASEPOINT_TABLE);
+        b.iter(|| &scalar * &ED25519_BASEPOINT_TABLE);
     }
 }

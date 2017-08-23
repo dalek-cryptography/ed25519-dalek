@@ -51,7 +51,8 @@
 //! # use ed25519_dalek::Signature;
 //! # let mut cspring: OsRng = OsRng::new().unwrap();
 //! # let keypair: Keypair = Keypair::generate::<Sha512>(&mut cspring);
-//! let message: &[u8] = "This is a test of the tsunami alert system.".as_bytes();
+//! let message: &[u8] = "This is a test of the tsunami alert
+//! system.".as_bytes();
 //! let signature: Signature = keypair.sign::<Sha512>(message);
 //! # }
 //! ```
@@ -71,7 +72,8 @@
 //! # use ed25519_dalek::Signature;
 //! # let mut cspring: OsRng = OsRng::new().unwrap();
 //! # let keypair: Keypair = Keypair::generate::<Sha512>(&mut cspring);
-//! # let message: &[u8] = "This is a test of the tsunami alert system.".as_bytes();
+//! # let message: &[u8] = "This is a test of the tsunami alert
+//! system.".as_bytes();
 //! # let signature: Signature = keypair.sign::<Sha512>(message);
 //! let verified: bool = keypair.verify::<Sha512>(message, &signature);
 //!
@@ -95,7 +97,8 @@
 //! use ed25519_dalek::PublicKey;
 //! # let mut cspring: OsRng = OsRng::new().unwrap();
 //! # let keypair: Keypair = Keypair::generate::<Sha512>(&mut cspring);
-//! # let message: &[u8] = "This is a test of the tsunami alert system.".as_bytes();
+//! # let message: &[u8] = "This is a test of the tsunami alert
+//! system.".as_bytes();
 //! # let signature: Signature = keypair.sign::<Sha512>(message);
 //! let public_key: PublicKey = keypair.public;
 //! let verified: bool = public_key.verify::<Sha512>(message, &signature);
@@ -137,4 +140,5 @@ extern crate test;
 mod ed25519;
 
 // Export everything public in ed25519.
+
 pub use ed25519::*;
