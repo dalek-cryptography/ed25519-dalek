@@ -13,7 +13,7 @@
 use core::fmt::{Debug};
 
 #[cfg(feature = "std")]
-use rand::Rng;
+use rand::RngCore;
 
 #[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};
@@ -262,7 +262,7 @@ impl SecretKey {
     ///
     /// # fn main() {
     ///
-    /// use rand::Rng;
+    /// use rand::RngCore;
     /// use rand::OsRng;
     /// use sha2::Sha512;
     /// use ed25519_dalek::PublicKey;
@@ -286,7 +286,7 @@ impl SecretKey {
     /// #
     /// # fn main() {
     /// #
-    /// # use rand::Rng;
+    /// # use rand::RngCore;
     /// # use rand::OsRng;
     /// # use sha2::Sha512;
     /// # use ed25519_dalek::PublicKey;
@@ -310,7 +310,7 @@ impl SecretKey {
     /// from `rand::OsRng::new()` (in the `rand` crate).
     ///
     #[cfg(feature = "std")]
-    pub fn generate(csprng: &mut Rng) -> SecretKey {
+    pub fn generate(csprng: &mut RngCore) -> SecretKey {
         let mut sk: SecretKey = SecretKey([0u8; 32]);
 
         csprng.fill_bytes(&mut sk.0);
@@ -400,7 +400,7 @@ impl<'a> From<&'a SecretKey> for ExpandedSecretKey {
     /// #
     /// # fn main() {
     /// #
-    /// use rand::{Rng, OsRng};
+    /// use rand::{RngCore, OsRng};
     /// use sha2::Sha512;
     /// use ed25519_dalek::{SecretKey, ExpandedSecretKey};
     ///
@@ -433,7 +433,7 @@ impl ExpandedSecretKey {
     /// # #[cfg(feature = "sha2")]
     /// # fn main() {
     /// #
-    /// use rand::{Rng, OsRng};
+    /// use rand::{RngCore, OsRng};
     /// use sha2::Sha512;
     /// use ed25519_dalek::{SecretKey, ExpandedSecretKey};
     ///
@@ -471,7 +471,7 @@ impl ExpandedSecretKey {
     /// # extern crate sha2;
     /// # extern crate ed25519_dalek;
     /// #
-    /// use rand::{Rng, OsRng};
+    /// use rand::{RngCore, OsRng};
     /// use ed25519_dalek::{SecretKey, ExpandedSecretKey};
     /// use ed25519_dalek::DecodingError;
     ///
@@ -523,7 +523,7 @@ impl ExpandedSecretKey {
     /// #
     /// # fn do_test() {
     /// #
-    /// use rand::{Rng, OsRng};
+    /// use rand::{RngCore, OsRng};
     /// use sha2::Sha512;
     /// use ed25519_dalek::{SecretKey, ExpandedSecretKey};
     ///
@@ -849,7 +849,7 @@ impl Keypair {
     ///
     /// # fn main() {
     ///
-    /// use rand::Rng;
+    /// use rand::RngCore;
     /// use rand::OsRng;
     /// use sha2::Sha512;
     /// use ed25519_dalek::Keypair;
@@ -872,7 +872,7 @@ impl Keypair {
     /// which is available with `use sha2::Sha512` as in the example above.
     /// Other suitable hash functions include Keccak-512 and Blake2b-512.
     #[cfg(feature = "std")]
-    pub fn generate<D>(csprng: &mut Rng) -> Keypair
+    pub fn generate<D>(csprng: &mut RngCore) -> Keypair
             where D: Digest<OutputSize = U64> + Default {
         let sk: SecretKey = SecretKey::generate(csprng);
         let pk: PublicKey = PublicKey::from_secret::<D>(&sk);
@@ -1133,7 +1133,7 @@ mod bench {
         }
     }
 
-    impl Rng for ZeroRng {
+    impl RngCore for ZeroRng {
         fn next_u32(&mut self) -> u32 { 0u32 }
 
         fn fill_bytes(&mut self, bytes: &mut [u8]) {
