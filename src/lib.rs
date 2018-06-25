@@ -25,7 +25,7 @@
 //! extern crate ed25519_dalek;
 //!
 //! # fn main() {
-//! use rand::Rng;
+//! use rand::RngCore;
 //! use rand::OsRng;
 //! use sha2::Sha512;
 //! use ed25519_dalek::Keypair;
@@ -43,7 +43,7 @@
 //! # extern crate sha2;
 //! # extern crate ed25519_dalek;
 //! # fn main() {
-//! # use rand::Rng;
+//! # use rand::RngCore;
 //! # use rand::OsRng;
 //! # use sha2::Sha512;
 //! # use ed25519_dalek::Keypair;
@@ -63,7 +63,7 @@
 //! # extern crate sha2;
 //! # extern crate ed25519_dalek;
 //! # fn main() {
-//! # use rand::Rng;
+//! # use rand::RngCore;
 //! # use rand::OsRng;
 //! # use sha2::Sha512;
 //! # use ed25519_dalek::Keypair;
@@ -86,7 +86,7 @@
 //! # extern crate sha2;
 //! # extern crate ed25519_dalek;
 //! # fn main() {
-//! # use rand::Rng;
+//! # use rand::RngCore;
 //! # use rand::OsRng;
 //! # use sha2::Sha512;
 //! # use ed25519_dalek::Keypair;
@@ -117,7 +117,7 @@
 //! # extern crate sha2;
 //! # extern crate ed25519_dalek;
 //! # fn main() {
-//! # use rand::{Rng, OsRng};
+//! # use rand::{RngCore, OsRng};
 //! # use sha2::Sha512;
 //! # use ed25519_dalek::{Keypair, Signature, PublicKey};
 //! use ed25519_dalek::{PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH, KEYPAIR_LENGTH, SIGNATURE_LENGTH};
@@ -141,7 +141,7 @@
 //! # extern crate rand;
 //! # extern crate sha2;
 //! # extern crate ed25519_dalek;
-//! # use rand::{Rng, OsRng};
+//! # use rand::{RngCore, OsRng};
 //! # use sha2::Sha512;
 //! # use ed25519_dalek::{Keypair, Signature, PublicKey, SecretKey, DecodingError};
 //! # use ed25519_dalek::{PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH, KEYPAIR_LENGTH, SIGNATURE_LENGTH};
@@ -191,7 +191,7 @@
 //!
 //! # #[cfg(feature = "serde")]
 //! # fn main() {
-//! # use rand::{Rng, OsRng};
+//! # use rand::{RngCore, OsRng};
 //! # use sha2::Sha512;
 //! # use ed25519_dalek::{Keypair, Signature, PublicKey};
 //! use bincode::{serialize, Infinite};
@@ -223,7 +223,7 @@
 //! #
 //! # #[cfg(feature = "serde")]
 //! # fn main() {
-//! # use rand::{Rng, OsRng};
+//! # use rand::{RngCore, OsRng};
 //! # use sha2::Sha512;
 //! # use ed25519_dalek::{Keypair, Signature, PublicKey};
 //! # use bincode::{serialize, Infinite};
@@ -258,10 +258,10 @@
 #![deny(missing_docs)] // refuse to compile if documentation is missing
 
 extern crate curve25519_dalek;
-extern crate generic_array;
 extern crate digest;
-extern crate subtle;
 extern crate failure;
+extern crate generic_array;
+extern crate subtle;
 
 #[cfg(feature = "std")]
 extern crate rand;
