@@ -13,7 +13,7 @@
 use core::fmt::{Debug};
 
 #[cfg(feature = "std")]
-use rand::Rng;
+use rand::{CryptoRng, RngCore, OsRng};
 
 #[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};
@@ -61,6 +61,12 @@ const EXPANDED_SECRET_KEY_NONCE_LENGTH: usize = 32;
 
 /// The length of an "expanded" curve25519 EdDSA key, `ExpandedSecretKey`, in bytes.
 pub const EXPANDED_SECRET_KEY_LENGTH: usize = EXPANDED_SECRET_KEY_KEY_LENGTH + EXPANDED_SECRET_KEY_NONCE_LENGTH;
+
+/// Random number generator trait (bounded on the `CryptoRng` marker trait)
+#[cfg(feature = "std")]
+pub trait Rng: CryptoRng + RngCore {}
+#[cfg(feature = "std")]
+impl Rng for OsRng {}
 
 /// An EdDSA signature.
 ///
