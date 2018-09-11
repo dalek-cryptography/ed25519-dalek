@@ -435,7 +435,7 @@ impl<'a> From<&'a SecretKey> for ExpandedSecretKey {
 impl ExpandedSecretKey {
 
     ///Construct an ExpandedSecretKey given an array of exactly `EXPANDED_SECRET_KEY_LENGTH` bytes.
-    fn new(bytes: [u8; EXPANDED_SECRET_KEY_LENGTH]) -> ExpandedSecretKey {
+    pub fn new(bytes: [u8; EXPANDED_SECRET_KEY_LENGTH]) -> ExpandedSecretKey {
         let mut lower: [u8; 32] = [0u8; 32];
         let mut upper: [u8; 32] = [0u8; 32];
 
