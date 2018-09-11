@@ -185,6 +185,12 @@ impl Drop for SecretKey {
 }
 
 impl SecretKey {
+
+    ///Construct a SecretKey given an array of `SECRET_KEY_LENGTH`.
+    pub fn new(bytes: [u8; SECRET_KEY_LENGTH]) -> SecretKey {
+        SecretKey(bytes)
+    }
+
     /// Expand this `SecretKey` into an `ExpandedSecretKey`.
     pub fn expand<D>(&self) -> ExpandedSecretKey where D: Digest<OutputSize = U64> + Default {
         ExpandedSecretKey::from_secret_key::<D>(&self)
@@ -427,6 +433,19 @@ impl<'a> From<&'a SecretKey> for ExpandedSecretKey {
 }
 
 impl ExpandedSecretKey {
+
+    ///Construct an ExpandedSecretKey given an array of exactly `EXPANDED_SECRET_KEY_LENGTH` bytes.
+    fn new(bytes: [u8; EXPANDED_SECRET_KEY_LENGTH]) -> ExpandedSecretKey {
+        let mut lower: [u8; 32] = [0u8; 32];
+        let mut upper: [u8; 32] = [0u8; 32];
+
+        lower.copy_from_slice(&bytes[00..32]);
+        upper.copy_from_slice(&bytes[32..64]);
+
+        ExpandedSecretKey{ key:   Scalar::from_bits(lower),
+                           nonce:                   upper  }
+    }
+
     /// Convert this `ExpandedSecretKey` into an array of 64 bytes.
     ///
     /// # Returns
@@ -514,14 +533,10 @@ impl ExpandedSecretKey {
             return Err(SignatureError(InternalError::BytesLengthError{
                 name: "ExpandedSecretKey", length: EXPANDED_SECRET_KEY_LENGTH }));
         }
-        let mut lower: [u8; 32] = [0u8; 32];
-        let mut upper: [u8; 32] = [0u8; 32];
+        let mut sized_bytes: [u8; 64] = [0u8; 64];
+        sized_bytes.copy_from_slice(&bytes[00..64]);
 
-        lower.copy_from_slice(&bytes[00..32]);
-        upper.copy_from_slice(&bytes[32..64]);
-
-        Ok(ExpandedSecretKey{ key:   Scalar::from_bits(lower),
-                              nonce:                   upper  })
+        Ok(ExpandedSecretKey::new(sized_bytes))
     }
 
     /// Construct an `ExpandedSecretKey` from a `SecretKey`, using hash function `D`.
