@@ -120,7 +120,7 @@ impl Signature {
 
     /// Construct a `Signature` from a slice of bytes.
     #[inline]
-    pub fn from_bytes(bytes: &[u8]) -> Result<Signature, SignatureError> {
+    pub fn from_slice(bytes: &[u8]) -> Result<Signature, SignatureError> {
         if bytes.len() != SIGNATURE_LENGTH {
             return Err(SignatureError(InternalError::BytesLengthError{
                 name: "Signature", length: SIGNATURE_LENGTH }));
@@ -159,7 +159,7 @@ impl<'d> Deserialize<'d> for Signature {
             }
 
             fn visit_bytes<E>(self, bytes: &[u8]) -> Result<Signature, E> where E: SerdeError{
-                Signature::from_bytes(bytes).or(Err(SerdeError::invalid_length(bytes.len(), &self)))
+                Signature::from_slice(bytes).or(Err(SerdeError::invalid_length(bytes.len(), &self)))
             }
         }
         deserializer.deserialize_bytes(SignatureVisitor)
@@ -220,7 +220,7 @@ impl SecretKey {
     ///    068, 073, 197, 105, 123, 050, 105, 025,
     ///    112, 059, 172, 003, 028, 174, 127, 096, ];
     ///
-    /// let secret_key: SecretKey = SecretKey::from_bytes(&secret_key_bytes)?;
+    /// let secret_key: SecretKey = SecretKey::from_slice(&secret_key_bytes)?;
     /// #
     /// # Ok(secret_key)
     /// # }
@@ -236,7 +236,7 @@ impl SecretKey {
     /// A `Result` whose okay value is an EdDSA `SecretKey` or whose error value
     /// is an `SignatureError` wrapping the internal error that occurred.
     #[inline]
-    pub fn from_bytes(bytes: &[u8]) -> Result<SecretKey, SignatureError> {
+    pub fn from_slice(bytes: &[u8]) -> Result<SecretKey, SignatureError> {
         if bytes.len() != SECRET_KEY_LENGTH {
             return Err(SignatureError(InternalError::BytesLengthError{
                 name: "SecretKey", length: SECRET_KEY_LENGTH }));
@@ -338,7 +338,7 @@ impl<'d> Deserialize<'d> for SecretKey {
             }
 
             fn visit_bytes<E>(self, bytes: &[u8]) -> Result<SecretKey, E> where E: SerdeError {
-                SecretKey::from_bytes(bytes).or(Err(SerdeError::invalid_length(bytes.len(), &self)))
+                SecretKey::from_slice(bytes).or(Err(SerdeError::invalid_length(bytes.len(), &self)))
             }
         }
         deserializer.deserialize_bytes(SecretKeyVisitor)
@@ -494,7 +494,7 @@ impl ExpandedSecretKey {
     /// let secret_key: SecretKey = SecretKey::generate(&mut csprng);
     /// let expanded_secret_key: ExpandedSecretKey = ExpandedSecretKey::from(&secret_key);
     /// let bytes: [u8; 64] = expanded_secret_key.to_bytes();
-    /// let expanded_secret_key_again = ExpandedSecretKey::from_bytes(&bytes)?;
+    /// let expanded_secret_key_again = ExpandedSecretKey::from_slice(&bytes)?;
     /// #
     /// # Ok(expanded_secret_key_again)
     /// # }
@@ -509,7 +509,7 @@ impl ExpandedSecretKey {
     /// # fn main() { }
     /// ```
     #[inline]
-    pub fn from_bytes(bytes: &[u8]) -> Result<ExpandedSecretKey, SignatureError> {
+    pub fn from_slice(bytes: &[u8]) -> Result<ExpandedSecretKey, SignatureError> {
         if bytes.len() != EXPANDED_SECRET_KEY_LENGTH {
             return Err(SignatureError(InternalError::BytesLengthError{
                 name: "ExpandedSecretKey", length: EXPANDED_SECRET_KEY_LENGTH }));
@@ -695,7 +695,7 @@ impl<'d> Deserialize<'d> for ExpandedSecretKey {
             }
 
             fn visit_bytes<E>(self, bytes: &[u8]) -> Result<ExpandedSecretKey, E> where E: SerdeError {
-                ExpandedSecretKey::from_bytes(bytes).or(Err(SerdeError::invalid_length(bytes.len(), &self)))
+                ExpandedSecretKey::from_slice(bytes).or(Err(SerdeError::invalid_length(bytes.len(), &self)))
             }
         }
         deserializer.deserialize_bytes(ExpandedSecretKeyVisitor)
@@ -748,7 +748,7 @@ impl PublicKey {
     ///    215,  90, 152,   1, 130, 177,  10, 183, 213,  75, 254, 211, 201, 100,   7,  58,
     ///     14, 225, 114, 243, 218, 166,  35,  37, 175,   2,  26, 104, 247,   7,   81, 26];
     ///
-    /// let public_key = PublicKey::from_bytes(&public_key_bytes)?;
+    /// let public_key = PublicKey::from_slice(&public_key_bytes)?;
     /// #
     /// # Ok(public_key)
     /// # }
@@ -763,7 +763,7 @@ impl PublicKey {
     /// A `Result` whose okay value is an EdDSA `PublicKey` or whose error value
     /// is an `SignatureError` describing the error that occurred.
     #[inline]
-    pub fn from_bytes(bytes: &[u8]) -> Result<PublicKey, SignatureError> {
+    pub fn from_slice(bytes: &[u8]) -> Result<PublicKey, SignatureError> {
         if bytes.len() != PUBLIC_KEY_LENGTH {
             return Err(SignatureError(InternalError::BytesLengthError{
                 name: "PublicKey", length: PUBLIC_KEY_LENGTH }));
@@ -963,7 +963,7 @@ pub fn verify_batch<D>(messages: &[&[u8]],
     assert!(signatures.len()  == messages.len(),    ASSERT_MESSAGE);
     assert!(signatures.len()  == public_keys.len(), ASSERT_MESSAGE);
     assert!(public_keys.len() == messages.len(),    ASSERT_MESSAGE);
- 
+
     #[cfg(feature = "alloc")]
     use alloc::vec::Vec;
     #[cfg(feature = "std")]
@@ -1039,7 +1039,7 @@ impl<'d> Deserialize<'d> for PublicKey {
             }
 
             fn visit_bytes<E>(self, bytes: &[u8]) -> Result<PublicKey, E> where E: SerdeError {
-                PublicKey::from_bytes(bytes).or(Err(SerdeError::invalid_length(bytes.len(), &self)))
+                PublicKey::from_slice(bytes).or(Err(SerdeError::invalid_length(bytes.len(), &self)))
             }
         }
         deserializer.deserialize_bytes(PublicKeyVisitor)
@@ -1093,13 +1093,13 @@ impl Keypair {
     ///
     /// A `Result` whose okay value is an EdDSA `Keypair` or whose error value
     /// is an `SignatureError` describing the error that occurred.
-    pub fn from_bytes<'a>(bytes: &'a [u8]) -> Result<Keypair, SignatureError> {
+    pub fn from_slice<'a>(bytes: &'a [u8]) -> Result<Keypair, SignatureError> {
         if bytes.len() != KEYPAIR_LENGTH {
             return Err(SignatureError(InternalError::BytesLengthError{
                 name: "Keypair", length: KEYPAIR_LENGTH}));
         }
-        let secret = SecretKey::from_bytes(&bytes[..SECRET_KEY_LENGTH])?;
-        let public = PublicKey::from_bytes(&bytes[SECRET_KEY_LENGTH..])?;
+        let secret = SecretKey::from_slice(&bytes[..SECRET_KEY_LENGTH])?;
+        let public = PublicKey::from_slice(&bytes[SECRET_KEY_LENGTH..])?;
 
         Ok(Keypair{ secret: secret, public: public })
     }
@@ -1356,8 +1356,8 @@ impl<'d> Deserialize<'d> for Keypair {
             }
 
             fn visit_bytes<E>(self, bytes: &[u8]) -> Result<Keypair, E> where E: SerdeError {
-                let secret_key = SecretKey::from_bytes(&bytes[..SECRET_KEY_LENGTH]);
-                let public_key = PublicKey::from_bytes(&bytes[SECRET_KEY_LENGTH..]);
+                let secret_key = SecretKey::from_slice(&bytes[..SECRET_KEY_LENGTH]);
+                let public_key = PublicKey::from_slice(&bytes[SECRET_KEY_LENGTH..]);
 
                 if secret_key.is_ok() && public_key.is_ok() {
                     Ok(Keypair{ secret: secret_key.unwrap(), public: public_key.unwrap() })
@@ -1465,13 +1465,13 @@ mod test {
             let msg_bytes: Vec<u8> = FromHex::from_hex(&parts[2]).unwrap();
             let sig_bytes: Vec<u8> = FromHex::from_hex(&parts[3]).unwrap();
 
-            let secret: SecretKey = SecretKey::from_bytes(&sec_bytes[..SECRET_KEY_LENGTH]).unwrap();
-            let public: PublicKey = PublicKey::from_bytes(&pub_bytes[..PUBLIC_KEY_LENGTH]).unwrap();
+            let secret: SecretKey = SecretKey::from_slice(&sec_bytes[..SECRET_KEY_LENGTH]).unwrap();
+            let public: PublicKey = PublicKey::from_slice(&pub_bytes[..PUBLIC_KEY_LENGTH]).unwrap();
             let keypair: Keypair  = Keypair{ secret: secret, public: public };
 
 		    // The signatures in the test vectors also include the message
 		    // at the end, but we just want R and S.
-            let sig1: Signature = Signature::from_bytes(&sig_bytes[..64]).unwrap();
+            let sig1: Signature = Signature::from_slice(&sig_bytes[..64]).unwrap();
             let sig2: Signature = keypair.sign::<Sha512>(&msg_bytes);
 
             assert!(sig1 == sig2, "Signature bytes not equal on line {}", lineno);
@@ -1493,10 +1493,10 @@ mod test {
         let msg_bytes: Vec<u8> = FromHex::from_hex(message).unwrap();
         let sig_bytes: Vec<u8> = FromHex::from_hex(signature).unwrap();
 
-        let secret: SecretKey = SecretKey::from_bytes(&sec_bytes[..SECRET_KEY_LENGTH]).unwrap();
-        let public: PublicKey = PublicKey::from_bytes(&pub_bytes[..PUBLIC_KEY_LENGTH]).unwrap();
+        let secret: SecretKey = SecretKey::from_slice(&sec_bytes[..SECRET_KEY_LENGTH]).unwrap();
+        let public: PublicKey = PublicKey::from_slice(&pub_bytes[..PUBLIC_KEY_LENGTH]).unwrap();
         let keypair: Keypair  = Keypair{ secret: secret, public: public };
-        let sig1: Signature = Signature::from_bytes(&sig_bytes[..]).unwrap();
+        let sig1: Signature = Signature::from_slice(&sig_bytes[..]).unwrap();
 
         let mut prehash_for_signing: Sha512 = Sha512::default();
         let mut prehash_for_verifying: Sha512 = Sha512::default();
@@ -1578,7 +1578,7 @@ mod test {
     }
 
     #[test]
-    fn public_key_from_bytes() {
+    fn public_key_from_slice() {
         // Make another function so that we can test the ? operator.
         fn do_the_test() -> Result<PublicKey, SignatureError> {
             let public_key_bytes: [u8; PUBLIC_KEY_LENGTH] = [
@@ -1586,7 +1586,7 @@ mod test {
                 213, 075, 254, 211, 201, 100, 007, 058,
                 014, 225, 114, 243, 218, 166, 035, 037,
                 175, 002, 026, 104, 247, 007, 081, 026, ];
-            let public_key = PublicKey::from_bytes(&public_key_bytes)?;
+            let public_key = PublicKey::from_slice(&public_key_bytes)?;
 
             Ok(public_key)
         }
@@ -1599,7 +1599,7 @@ mod test {
 
     #[test]
     fn keypair_clear_on_drop() {
-        let mut keypair: Keypair = Keypair::from_bytes(&[15u8; KEYPAIR_LENGTH][..]).unwrap();
+        let mut keypair: Keypair = Keypair::from_slice(&[15u8; KEYPAIR_LENGTH][..]).unwrap();
 
         keypair.clear();
 
@@ -1632,7 +1632,7 @@ mod test {
     #[cfg(all(test, feature = "serde"))]
     #[test]
     fn serialize_deserialize_signature() {
-        let signature: Signature = Signature::from_bytes(&SIGNATURE_BYTES).unwrap();
+        let signature: Signature = Signature::from_slice(&SIGNATURE_BYTES).unwrap();
         let encoded_signature: Vec<u8> = serialize(&signature, Infinite).unwrap();
         let decoded_signature: Signature = deserialize(&encoded_signature).unwrap();
 

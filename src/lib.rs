@@ -137,7 +137,7 @@
 //! # }
 //! ```
 //!
-//! And similarly, decoded from bytes with `::from_bytes()`:
+//! And similarly, decoded from bytes with `::from_slice()`:
 //!
 //! ```
 //! # extern crate rand;
@@ -157,10 +157,10 @@
 //! # let keypair_bytes:    [u8; KEYPAIR_LENGTH]    = keypair_orig.to_bytes();
 //! # let signature_bytes:  [u8; SIGNATURE_LENGTH]  = signature_orig.to_bytes();
 //! #
-//! let public_key: PublicKey = PublicKey::from_bytes(&public_key_bytes)?;
-//! let secret_key: SecretKey = SecretKey::from_bytes(&secret_key_bytes)?;
-//! let keypair:    Keypair   = Keypair::from_bytes(&keypair_bytes)?;
-//! let signature:  Signature = Signature::from_bytes(&signature_bytes)?;
+//! let public_key: PublicKey = PublicKey::from_slice(&public_key_bytes)?;
+//! let secret_key: SecretKey = SecretKey::from_slice(&secret_key_bytes)?;
+//! let keypair:    Keypair   = Keypair::from_slice(&keypair_bytes)?;
+//! let signature:  Signature = Signature::from_slice(&signature_bytes)?;
 //! #
 //! # Ok((secret_key, public_key, keypair, signature))
 //! # }
