@@ -247,6 +247,12 @@ impl SecretKey {
         Ok(SecretKey(bits))
     }
 
+    /// Convert a byte array to a `SecretKey`.
+    #[inline]
+    pub fn from_bytes(bytes: [u8; SECRET_KEY_LENGTH]) -> SecretKey {
+        SecretKey(bytes)
+    }
+
     /// Generate a `SecretKey` from a `csprng`.
     ///
     /// # Example
@@ -772,6 +778,12 @@ impl PublicKey {
         bits.copy_from_slice(&bytes[..32]);
 
         Ok(PublicKey(CompressedEdwardsY(bits)))
+    }
+
+    /// Convert a byte array to a `PublicKey`.
+    #[inline]
+    pub fn from_bytes(bytes: [u8; PUBLIC_KEY_LENGTH]) -> PublicKey {
+        PublicKey(CompressedEdwardsY(bytes))
     }
 
     /// Derive this public key from its corresponding `SecretKey`.
