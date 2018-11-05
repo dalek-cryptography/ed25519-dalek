@@ -259,7 +259,6 @@
 
 extern crate curve25519_dalek;
 extern crate generic_array;
-extern crate digest;
 extern crate failure;
 extern crate rand;
 extern crate clear_on_drop;

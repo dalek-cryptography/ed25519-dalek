@@ -30,10 +30,9 @@ use sha2::Sha512;
 
 use clear_on_drop::clear::Clear;
 
-use digest::Digest;
-
 use generic_array::typenum::U64;
 
+use curve25519_dalek::digest::Digest;
 use curve25519_dalek::constants;
 use curve25519_dalek::edwards::CompressedEdwardsY;
 use curve25519_dalek::edwards::EdwardsPoint;
@@ -556,7 +555,7 @@ impl ExpandedSecretKey {
         let mut upper: [u8; 32] = [0u8; 32];
 
         h.input(secret_key.as_bytes());
-        hash.copy_from_slice(h.fixed_result().as_slice());
+        hash.copy_from_slice(h.result().as_slice());
 
         lower.copy_from_slice(&hash[00..32]);
         upper.copy_from_slice(&hash[32..64]);
@@ -634,7 +633,7 @@ impl ExpandedSecretKey {
         let ctx_len: u8 = ctx.len() as u8;
 
         // Get the result of the pre-hashed message.
-        prehash.copy_from_slice(prehashed_message.fixed_result().as_slice());
+        prehash.copy_from_slice(prehashed_message.result().as_slice());
 
         // This is the dumbest, ten-years-late, non-admission of fucking up the
         // domain separation I have ever seen.  Why am I still required to put
@@ -653,7 +652,7 @@ impl ExpandedSecretKey {
         h.input(&[ctx_len]);
         h.input(ctx);
         h.input(&self.nonce);
-        h.input(&prehash);
+        h.input(&prehash[..]);
 
         r = Scalar::from_hash(h);
         R = (&r * &constants::ED25519_BASEPOINT_TABLE).compress();
@@ -665,7 +664,7 @@ impl ExpandedSecretKey {
         h.input(ctx);
         h.input(R.as_bytes());
         h.input(public_key.as_bytes());
-        h.input(&prehash);
+        h.input(&prehash[..]);
 
         k = Scalar::from_hash(h);
         s = &(&k * &self.key) + &r;
@@ -784,7 +783,7 @@ impl PublicKey {
         let mut digest: [u8; 32] = [0u8; 32];
 
         h.input(secret_key.as_bytes());
-        hash.copy_from_slice(h.fixed_result().as_slice());
+        hash.copy_from_slice(h.result().as_slice());
 
         digest.copy_from_slice(&hash[..32]);
 
@@ -886,7 +885,7 @@ impl PublicKey {
         h.input(ctx);
         h.input(signature.R.as_bytes());
         h.input(self.as_bytes());
-        h.input(prehashed_message.fixed_result().as_slice());
+        h.input(prehashed_message.result().as_slice());
 
         k = Scalar::from_hash(h);
         R = EdwardsPoint::vartime_double_scalar_mul_basepoint(&k, &(-A), &signature.s);
@@ -963,7 +962,7 @@ pub fn verify_batch<D>(messages: &[&[u8]],
     assert!(signatures.len()  == messages.len(),    ASSERT_MESSAGE);
     assert!(signatures.len()  == public_keys.len(), ASSERT_MESSAGE);
     assert!(public_keys.len() == messages.len(),    ASSERT_MESSAGE);
- 
+
     #[cfg(feature = "alloc")]
     use alloc::vec::Vec;
     #[cfg(feature = "std")]
