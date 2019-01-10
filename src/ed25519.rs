@@ -939,7 +939,7 @@ impl From<ExpandedSecretKey> for PublicKey {
 /// use ed25519_dalek::PublicKey;
 /// use ed25519_dalek::Signature;
 /// use rand::thread_rng;
-/// use rand::ThreadRng;
+/// use rand::prelude::ThreadRng;
 /// use sha2::Sha512;
 ///
 /// # fn main() {
@@ -1382,7 +1382,7 @@ mod test {
     use rand::thread_rng;
     use rand::ChaChaRng;
     use rand::SeedableRng;
-    use rand::ThreadRng;
+    use rand::prelude::ThreadRng;
     use hex::FromHex;
     use sha2::Sha512;
     use super::*;
