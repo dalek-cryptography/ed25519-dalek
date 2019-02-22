@@ -18,7 +18,7 @@ use curve25519_dalek::edwards::CompressedEdwardsY;
 use curve25519_dalek::edwards::EdwardsPoint;
 use curve25519_dalek::scalar::Scalar;
 
-pub use sha2::Sha512;
+use super::Sha512;
 
 #[cfg(feature = "serde")]
 use serde::de::Error as SerdeError;
@@ -165,12 +165,7 @@ impl PublicKey {
     ///
     /// Returns `Ok(())` if the signature is valid, and `Err` otherwise.
     #[allow(non_snake_case)]
-    pub fn verify(
-        &self,
-        message: &[u8],
-        signature: &Signature
-    ) -> Result<(), SignatureError>
-    {
+    pub fn verify(&self, message: &[u8], signature: &Signature) -> Result<(), SignatureError> {
         let mut h: Sha512 = Sha512::new();
         let R: EdwardsPoint;
         let k: Scalar;
@@ -223,7 +218,10 @@ impl PublicKey {
         let k: Scalar;
 
         let ctx: &[u8] = context.unwrap_or(b"");
-        debug_assert!(ctx.len() <= 255, "The context must not be longer than 255 octets.");
+        debug_assert!(
+            ctx.len() <= 255,
+            "The context must not be longer than 255 octets."
+        );
 
         let minus_A: EdwardsPoint = -self.1;
 

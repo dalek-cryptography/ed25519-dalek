@@ -31,6 +31,10 @@ optional = true
 version = "^0.8"
 default-features = false
 
+[dependencies.sha3]
+version = "^0.8"
+default-features = false
+
 [dependencies.failure]
 version = "^0.1.1"
 default-features = false

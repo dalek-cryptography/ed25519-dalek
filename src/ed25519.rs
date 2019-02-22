@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "serde")]
 use serde::{Deserializer, Serializer};
 
-pub use sha2::Sha512;
+use super::Sha512;
 
 use curve25519_dalek::digest::generic_array::typenum::U64;
 pub use curve25519_dalek::digest::Digest;
@@ -90,13 +90,13 @@ pub fn verify_batch(
     messages: &[&[u8]],
     signatures: &[Signature],
     public_keys: &[PublicKey],
-) -> Result<(), SignatureError>
-{
-    const ASSERT_MESSAGE: &'static [u8] = b"The number of messages, signatures, and public keys must be equal.";
-    assert!(signatures.len()  == messages.len(),    ASSERT_MESSAGE);
-    assert!(signatures.len()  == public_keys.len(), ASSERT_MESSAGE);
-    assert!(public_keys.len() == messages.len(),    ASSERT_MESSAGE);
- 
+) -> Result<(), SignatureError> {
+    const ASSERT_MESSAGE: &'static [u8] =
+        b"The number of messages, signatures, and public keys must be equal.";
+    assert!(signatures.len() == messages.len(), ASSERT_MESSAGE);
+    assert!(signatures.len() == public_keys.len(), ASSERT_MESSAGE);
+    assert!(public_keys.len() == messages.len(), ASSERT_MESSAGE);
+
     #[cfg(feature = "alloc")]
     use alloc::vec::Vec;
     #[cfg(feature = "std")]
@@ -142,7 +142,8 @@ pub fn verify_batch(
     let id = EdwardsPoint::optional_multiscalar_mul(
         once(-B_coefficient).chain(zs.iter().cloned()).chain(zhrams),
         B.chain(Rs).chain(As),
-    ).ok_or_else(|| SignatureError(InternalError::VerifyError))?;
+    )
+    .ok_or_else(|| SignatureError(InternalError::VerifyError))?;
 
     if id.is_identity() {
         Ok(())
@@ -207,7 +208,10 @@ impl Keypair {
         let secret = SecretKey::from_bytes(&bytes[..SECRET_KEY_LENGTH])?;
         let public = PublicKey::from_bytes(&bytes[SECRET_KEY_LENGTH..])?;
 
-        Ok(Keypair{ secret: secret, public: public })
+        Ok(Keypair {
+            secret: secret,
+            public: public,
+        })
     }
 
     /// Generate an ed25519 keypair.
@@ -251,7 +255,10 @@ impl Keypair {
         let sk: SecretKey = SecretKey::generate(csprng);
         let pk: PublicKey = (&sk).into();
 
-        Keypair{ public: pk, secret: sk }
+        Keypair {
+            public: pk,
+            secret: sk,
+        }
     }
 
     /// Sign a message with this keypair's secret key.
@@ -369,12 +376,7 @@ impl Keypair {
     }
 
     /// Verify a signature on a message with this keypair's public key.
-    pub fn verify(
-        &self,
-        message: &[u8],
-        signature: &Signature
-    ) -> Result<(), SignatureError>
-    {
+    pub fn verify(&self, message: &[u8], signature: &Signature) -> Result<(), SignatureError> {
         self.public.verify(message, signature)
     }
 
@@ -443,7 +445,8 @@ impl Keypair {
     where
         D: Digest<OutputSize = U64>,
     {
-        self.public.verify_prehashed(prehashed_message, context, signature)
+        self.public
+            .verify_prehashed(prehashed_message, context, signature)
     }
 }
 
@@ -469,9 +472,11 @@ impl<'d> Deserialize<'d> for Keypair {
             type Value = Keypair;
 
             fn expecting(&self, formatter: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-                formatter.write_str("An ed25519 keypair, 64 bytes in total where the secret key is \
-                                     the first 32 bytes and is in unexpanded form, and the second \
-                                     32 bytes is a compressed point for a public key.")
+                formatter.write_str(
+                    "An ed25519 keypair, 64 bytes in total where the secret key is \
+                     the first 32 bytes and is in unexpanded form, and the second \
+                     32 bytes is a compressed point for a public key.",
+                )
             }
 
             fn visit_bytes<E>(self, bytes: &[u8]) -> Result<Keypair, E>
@@ -482,7 +487,10 @@ impl<'d> Deserialize<'d> for Keypair {
                 let public_key = PublicKey::from_bytes(&bytes[SECRET_KEY_LENGTH..]);
 
                 if secret_key.is_ok() && public_key.is_ok() {
-                    Ok(Keypair{ secret: secret_key.unwrap(), public: public_key.unwrap() })
+                    Ok(Keypair {
+                        secret: secret_key.unwrap(),
+                        public: public_key.unwrap(),
+                    })
                 } else {
                     Err(SerdeError::invalid_length(bytes.len(), &self))
                 }

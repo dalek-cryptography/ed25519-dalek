@@ -22,7 +22,7 @@ use curve25519_dalek::scalar::Scalar;
 use rand::CryptoRng;
 use rand::Rng;
 
-use sha2::Sha512;
+use super::Sha512;
 
 #[cfg(feature = "serde")]
 use serde::de::Error as SerdeError;
@@ -293,7 +293,7 @@ impl<'a> From<&'a SecretKey> for ExpandedSecretKey {
     /// ```
     fn from(secret_key: &'a SecretKey) -> ExpandedSecretKey {
         let mut h: Sha512 = Sha512::default();
-        let mut hash:  [u8; 64] = [0u8; 64];
+        let mut hash: [u8; 64] = [0u8; 64];
         let mut lower: [u8; 32] = [0u8; 32];
         let mut upper: [u8; 32] = [0u8; 32];
 
@@ -303,11 +303,14 @@ impl<'a> From<&'a SecretKey> for ExpandedSecretKey {
         lower.copy_from_slice(&hash[00..32]);
         upper.copy_from_slice(&hash[32..64]);
 
-        lower[0]  &= 248;
-        lower[31] &=  63;
-        lower[31] |=  64;
+        lower[0] &= 248;
+        lower[31] &= 63;
+        lower[31] |= 64;
 
-        ExpandedSecretKey{ key: Scalar::from_bits(lower), nonce: upper, }
+        ExpandedSecretKey {
+            key: Scalar::from_bits(lower),
+            nonce: upper,
+        }
     }
 }
 
@@ -480,7 +483,10 @@ impl ExpandedSecretKey {
 
         let ctx: &[u8] = context.unwrap_or(b""); // By default, the context is an empty string.
 
-        debug_assert!(ctx.len() <= 255, "The context must not be longer than 255 octets.");
+        debug_assert!(
+            ctx.len() <= 255,
+            "The context must not be longer than 255 octets."
+        );
 
         let ctx_len: u8 = ctx.len() as u8;
 
