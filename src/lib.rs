@@ -254,11 +254,11 @@ extern crate rand;
 #[cfg(feature = "serde")]
 extern crate serde;
 
-/// sha512
+/// sha2_512
 #[cfg(not(feature = "sha3"))]
 pub type Sha512 = sha2::Sha512;
 
-/// sha512
+/// sha3_512
 #[cfg(feature = "sha3")]
 pub type Sha512 = sha3::Sha3_512;
 
