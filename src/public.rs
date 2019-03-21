@@ -216,9 +216,9 @@ impl PublicKey {
         signature: &Signature,
     ) -> Result<(), SignatureError>
     where
-        D: Digest<OutputSize = U64>,
+        D: Digest<OutputSize = U64> + Digest,
     {
-        let mut h: Sha512 = Sha512::default();
+        let mut h: D = D::new();
         let R: EdwardsPoint;
         let k: Scalar;
 

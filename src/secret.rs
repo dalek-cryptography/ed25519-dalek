@@ -469,9 +469,9 @@ impl ExpandedSecretKey {
         context: Option<&'static [u8]>,
     ) -> Signature
     where
-        D: Digest<OutputSize = U64>,
+        D: Digest<OutputSize = U64> + Default,
     {
-        let mut h: Sha512;
+        let mut h: D;
         let mut prehash: [u8; 64] = [0u8; 64];
         let R: CompressedEdwardsY;
         let r: Scalar;
@@ -499,7 +499,7 @@ impl ExpandedSecretKey {
         //
         // This is a really fucking stupid bandaid, and the damned scheme is
         // still bleeding from malleability, for fuck's sake.
-        h = Sha512::new()
+        h = D::new()
             .chain(b"SigEd25519 no Ed25519 collisions")
             .chain(&[1]) // Ed25519ph
             .chain(&[ctx_len])
@@ -510,7 +510,7 @@ impl ExpandedSecretKey {
         r = Scalar::from_hash(h);
         R = (&r * &constants::ED25519_BASEPOINT_TABLE).compress();
 
-        h = Sha512::new()
+        h = D::new()
             .chain(b"SigEd25519 no Ed25519 collisions")
             .chain(&[1]) // Ed25519ph
             .chain(&[ctx_len])
