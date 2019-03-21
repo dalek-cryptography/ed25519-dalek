@@ -171,7 +171,24 @@ impl PublicKey {
         signature: &Signature
     ) -> Result<(), SignatureError>
     {
-        let mut h: Sha512 = Sha512::new();
+        self.verify_with_digest::<Sha512>(message, signature)
+    }
+
+    /// Verify a signature on a message with this keypair's public key
+    /// using custom Digest algorithm.
+    ///
+    /// # Return
+    ///
+    /// Returns `Ok(())` if the signature is valid, and `Err` otherwise.
+    #[allow(non_snake_case)]
+    pub fn verify_with_digest<D>(
+        &self,
+        message: &[u8],
+        signature: &Signature
+    ) -> Result<(), SignatureError>
+        where D: Digest<OutputSize = U64> + Default
+    {
+        let mut h: D = D::new();
         let R: EdwardsPoint;
         let k: Scalar;
         let minus_A: EdwardsPoint = -self.1;

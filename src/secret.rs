@@ -420,7 +420,17 @@ impl ExpandedSecretKey {
     /// Sign a message with this `ExpandedSecretKey`.
     #[allow(non_snake_case)]
     pub fn sign(&self, message: &[u8], public_key: &PublicKey) -> Signature {
-        let mut h: Sha512 = Sha512::new();
+        self.sign_with_digest::<Sha512>(message, public_key)
+    }
+
+    /// Sign a message with this `ExpandedSecretKey` using custom
+    /// digest algorithm.
+    #[allow(non_snake_case)]
+    pub fn sign_with_digest<D>(&self, message: &[u8], public_key: &PublicKey) -> Signature
+    where
+        D: Digest<OutputSize = U64> + Digest + Default
+    {
+        let mut h: D = D::new();
         let R: CompressedEdwardsY;
         let r: Scalar;
         let s: Scalar;
@@ -432,7 +442,7 @@ impl ExpandedSecretKey {
         r = Scalar::from_hash(h);
         R = (&r * &constants::ED25519_BASEPOINT_TABLE).compress();
 
-        h = Sha512::new();
+        h = D::new();
         h.input(R.as_bytes());
         h.input(public_key.as_bytes());
         h.input(&message);

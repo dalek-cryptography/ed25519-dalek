@@ -261,6 +261,16 @@ impl Keypair {
         expanded.sign(&message, &self.public)
     }
 
+    /// Sign a message with this keypair's secret key using custom digest algorithm.
+    pub fn sign_with_digest<D>(&self, message: &[u8]) -> Signature
+    where
+        D: Digest<OutputSize = U64> + Digest + Default
+    {
+        let expanded: ExpandedSecretKey = (&self.secret).into();
+
+        expanded.sign_with_digest::<D>(&message, &self.public)
+    }
+
     /// Sign a `prehashed_message` with this `Keypair` using the
     /// Ed25519ph algorithm defined in [RFC8032 §5.1][rfc8032].
     ///
