@@ -216,7 +216,7 @@ impl PublicKey {
         signature: &Signature,
     ) -> Result<(), SignatureError>
     where
-        D: Digest<OutputSize = U64> + Digest,
+        D: Digest<OutputSize = U64> + Digest + Default,
     {
         let mut h: D = D::new();
         let R: EdwardsPoint;

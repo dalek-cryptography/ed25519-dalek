@@ -361,7 +361,7 @@ impl Keypair {
         context: Option<&'static [u8]>,
     ) -> Signature
     where
-        D: Digest<OutputSize = U64>,
+        D: Digest<OutputSize = U64> + Default,
     {
         let expanded: ExpandedSecretKey = (&self.secret).into(); // xxx thanks i hate this
 
@@ -441,7 +441,7 @@ impl Keypair {
         signature: &Signature,
     ) -> Result<(), SignatureError>
     where
-        D: Digest<OutputSize = U64>,
+        D: Digest<OutputSize = U64> + Default,
     {
         self.public.verify_prehashed(prehashed_message, context, signature)
     }
