@@ -254,6 +254,21 @@ impl Keypair {
         Keypair{ public: pk, secret: sk }
     }
 
+    /// Generate keypair using custom `Digest`
+    pub fn generate_with_digest<R, D>(csprng: &mut R) -> Keypair
+    where
+        R: CryptoRng + Rng,
+        D: Digest<OutputSize = U64> + Default,
+    {
+        let sk: SecretKey = SecretKey::generate(csprng);
+        let pk = PublicKey::from_secret_with_digest::<D>(&sk);
+
+        Keypair {
+            public: pk,
+            secret: sk,
+        }
+    }
+
     /// Sign a message with this keypair's secret key.
     pub fn sign(&self, message: &[u8]) -> Signature {
         let expanded: ExpandedSecretKey = (&self.secret).into();
@@ -264,9 +279,9 @@ impl Keypair {
     /// Sign a message with this keypair's secret key using custom digest algorithm.
     pub fn sign_with_digest<D>(&self, message: &[u8]) -> Signature
     where
-        D: Digest<OutputSize = U64> + Digest + Default
+        D: Digest<OutputSize = U64> + Digest + Default,
     {
-        let expanded: ExpandedSecretKey = (&self.secret).into();
+        let expanded = ExpandedSecretKey::from_secret_with_digest::<D>(&self.secret);
 
         expanded.sign_with_digest::<D>(&message, &self.public)
     }

@@ -417,6 +417,32 @@ impl ExpandedSecretKey {
         })
     }
 
+    /// From `SecretKey` using custom `Digest`
+    pub fn from_secret_with_digest<D>(secret_key: &'_ SecretKey) -> ExpandedSecretKey
+    where
+        D: Digest<OutputSize = U64> + Digest + Default,
+    {
+        let mut h: D = D::default();
+        let mut hash: [u8; 64] = [0u8; 64];
+        let mut lower: [u8; 32] = [0u8; 32];
+        let mut upper: [u8; 32] = [0u8; 32];
+
+        h.input(secret_key.as_bytes());
+        hash.copy_from_slice(h.result().as_slice());
+
+        lower.copy_from_slice(&hash[00..32]);
+        upper.copy_from_slice(&hash[32..64]);
+
+        lower[0] &= 248;
+        lower[31] &= 63;
+        lower[31] |= 64;
+
+        ExpandedSecretKey {
+            key: Scalar::from_bits(lower),
+            nonce: upper,
+        }
+    }
+
     /// Sign a message with this `ExpandedSecretKey`.
     #[allow(non_snake_case)]
     pub fn sign(&self, message: &[u8], public_key: &PublicKey) -> Signature {
