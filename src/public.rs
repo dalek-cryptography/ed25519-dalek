@@ -261,6 +261,23 @@ impl PublicKey {
             Err(SignatureError(InternalError::VerifyError))
         }
     }
+
+    /// Derive this public key from its corresponding `SecretKey`.
+    #[allow(unused_assignments)]
+    pub fn from_secret_with_digest<D>(secret_key: &SecretKey) -> Self
+        where D: Digest<OutputSize = U64> + Default
+    {
+        let mut h:    D = D::default();
+        let mut hash:   [u8; 64] = [0u8; 64];
+        let mut digest: [u8; 32] = [0u8; 32];
+
+        h.input(secret_key.as_bytes());
+        hash.copy_from_slice(h.result().as_slice());
+
+        digest.copy_from_slice(&hash[..32]);
+
+        Self::mangle_scalar_bits_and_multiply_by_basepoint_to_produce_public_key(&mut digest)
+    }
 }
 
 #[cfg(feature = "serde")]
