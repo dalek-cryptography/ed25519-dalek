@@ -96,7 +96,7 @@ pub fn verify_batch(
     assert!(signatures.len()  == messages.len(),    ASSERT_MESSAGE);
     assert!(signatures.len()  == public_keys.len(), ASSERT_MESSAGE);
     assert!(public_keys.len() == messages.len(),    ASSERT_MESSAGE);
- 
+
     #[cfg(feature = "alloc")]
     use alloc::vec::Vec;
     #[cfg(feature = "std")]
@@ -444,6 +444,12 @@ impl Keypair {
         D: Digest<OutputSize = U64>,
     {
         self.public.verify_prehashed(prehashed_message, context, signature)
+    }
+}
+
+impl PartialEq for Keypair {
+    fn eq(&self, other: &Self) -> bool {
+        self.public.as_ref() == other.public.as_ref()
     }
 }
 
