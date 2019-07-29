@@ -9,7 +9,12 @@
 
 //! ed25519 public keys.
 
+use core::cmp::Ord;
+use core::cmp::Ordering;
+use core::cmp::PartialOrd;
 use core::fmt::Debug;
+use core::hash::Hash;
+use core::hash::Hasher;
 
 use curve25519_dalek::constants;
 use curve25519_dalek::digest::generic_array::typenum::U64;
@@ -47,6 +52,24 @@ impl Debug for PublicKey {
 impl AsRef<[u8]> for PublicKey {
     fn as_ref(&self) -> &[u8] {
         self.as_bytes()
+    }
+}
+
+impl Hash for PublicKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.as_bytes().hash(state)
+    }
+}
+
+impl PartialOrd for PublicKey {
+    fn partial_cmp(&self, rhs: &Self) -> Option<Ordering> {
+        Some(self.cmp(rhs))
+    }
+}
+
+impl Ord for PublicKey {
+    fn cmp(&self, rhs: &Self) -> Ordering {
+        self.0.as_bytes().cmp(rhs.0.as_bytes())
     }
 }
 

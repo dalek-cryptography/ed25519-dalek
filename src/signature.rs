@@ -9,7 +9,12 @@
 
 //! An ed25519 signature.
 
+use core::cmp::Ord;
+use core::cmp::Ordering;
+use core::cmp::PartialOrd;
 use core::fmt::Debug;
+use core::hash::Hash;
+use core::hash::Hasher;
 
 use curve25519_dalek::edwards::CompressedEdwardsY;
 use curve25519_dalek::scalar::Scalar;
@@ -68,6 +73,27 @@ impl Clone for Signature {
 impl Debug for Signature {
     fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
         write!(f, "Signature( R: {:?}, s: {:?} )", &self.R, &self.s)
+    }
+}
+
+impl Hash for Signature {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.R.as_bytes().hash(state);
+        self.s.as_bytes().hash(state);
+    }
+}
+
+impl PartialOrd for Signature {
+    fn partial_cmp(&self, rhs: &Self) -> Option<Ordering> {
+        Some(self.cmp(rhs))
+    }
+}
+
+impl Ord for Signature {
+    fn cmp(&self, rhs: &Self) -> Ordering {
+        self.R.as_bytes().cmp(rhs.R.as_bytes()).then_with(|| {
+            self.s.as_bytes().cmp(rhs.s.as_bytes())
+        })
     }
 }
 
