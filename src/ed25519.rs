@@ -55,7 +55,7 @@ pub use crate::signature::*;
 ///
 /// # Returns
 ///
-/// * A `Result` whose `Ok` value is an emtpy tuple and whose `Err` value is a
+/// * A `Result` whose `Ok` value is an empty tuple and whose `Err` value is a
 ///   `SignatureError` containing a description of the internal error which
 ///   occured.
 ///
