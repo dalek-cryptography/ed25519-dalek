@@ -30,9 +30,9 @@ use serde::{Deserialize, Serialize};
 use serde::{Deserializer, Serializer};
 
 use crate::constants::*;
-use crate::errors::*;
 use crate::secret::*;
 use crate::signature::*;
+use crate::{SignatureError, Verifier};
 
 /// An ed25519 public key.
 #[derive(Copy, Clone, Default, Eq, PartialEq)]
@@ -127,10 +127,7 @@ impl PublicKey {
     #[inline]
     pub fn from_bytes(bytes: &[u8]) -> Result<PublicKey, SignatureError> {
         if bytes.len() != PUBLIC_KEY_LENGTH {
-            return Err(SignatureError(InternalError::BytesLengthError {
-                name: "PublicKey",
-                length: PUBLIC_KEY_LENGTH,
-            }));
+            return Err(SignatureError::new());
         }
         let mut bits: [u8; 32] = [0u8; 32];
         bits.copy_from_slice(&bytes[..32]);
@@ -138,7 +135,7 @@ impl PublicKey {
         let compressed = CompressedEdwardsY(bits);
         let point = compressed
             .decompress()
-            .ok_or(SignatureError(InternalError::PointDecompressionError))?;
+            .ok_or(SignatureError::new())?;
 
         Ok(PublicKey(compressed, point))
     }
@@ -157,37 +154,6 @@ impl PublicKey {
         let compressed = point.compress();
 
         PublicKey(compressed, point)
-    }
-
-    /// Verify a signature on a message with this keypair's public key.
-    ///
-    /// # Return
-    ///
-    /// Returns `Ok(())` if the signature is valid, and `Err` otherwise.
-    #[allow(non_snake_case)]
-    pub fn verify(
-        &self,
-        message: &[u8],
-        signature: &Signature
-    ) -> Result<(), SignatureError>
-    {
-        let mut h: Sha512 = Sha512::new();
-        let R: EdwardsPoint;
-        let k: Scalar;
-        let minus_A: EdwardsPoint = -self.1;
-
-        h.input(signature.R.as_bytes());
-        h.input(self.as_bytes());
-        h.input(&message);
-
-        k = Scalar::from_hash(h);
-        R = EdwardsPoint::vartime_double_scalar_mul_basepoint(&k, &(minus_A), &signature.s);
-
-        if R.compress() == signature.R {
-            Ok(())
-        } else {
-            Err(SignatureError(InternalError::VerifyError))
-        }
     }
 
     /// Verify a `signature` on a `prehashed_message` using the Ed25519ph algorithm.
@@ -231,17 +197,17 @@ impl PublicKey {
         h.input(&[1]); // Ed25519ph
         h.input(&[ctx.len() as u8]);
         h.input(ctx);
-        h.input(signature.R.as_bytes());
+        h.input(signature.R().as_bytes());
         h.input(self.as_bytes());
         h.input(prehashed_message.result().as_slice());
 
         k = Scalar::from_hash(h);
-        R = EdwardsPoint::vartime_double_scalar_mul_basepoint(&k, &(minus_A), &signature.s);
+        R = EdwardsPoint::vartime_double_scalar_mul_basepoint(&k, &(minus_A), &signature.s());
 
-        if R.compress() == signature.R {
+        if R.compress() == signature.R() {
             Ok(())
         } else {
-            Err(SignatureError(InternalError::VerifyError))
+            Err(SignatureError::new())
         }
     }
 
@@ -320,27 +286,60 @@ impl PublicKey {
         let minus_A: EdwardsPoint = -self.1;
         let signature_R: EdwardsPoint;
 
-        match signature.R.decompress() {
-            None => return Err(SignatureError(InternalError::VerifyError)),
+        match signature.R().decompress() {
+            None => return Err(SignatureError::new()),
             Some(x) => signature_R = x,
         }
 
         // Logical OR is fine here as we're not trying to be constant time.
         if signature_R.is_small_order() || self.1.is_small_order() {
-            return Err(SignatureError(InternalError::VerifyError));
+            return Err(SignatureError::new());
         }
 
-        h.input(signature.R.as_bytes());
+        h.input(signature.R().as_bytes());
         h.input(self.as_bytes());
         h.input(&message);
 
         k = Scalar::from_hash(h);
-        R = EdwardsPoint::vartime_double_scalar_mul_basepoint(&k, &(minus_A), &signature.s);
+        R = EdwardsPoint::vartime_double_scalar_mul_basepoint(&k, &(minus_A), &signature.s());
 
         if R == signature_R {
             Ok(())
         } else {
-            Err(SignatureError(InternalError::VerifyError))
+            Err(SignatureError::new())
+        }
+    }
+}
+
+impl Verifier<Signature> for PublicKey {
+    /// Verify a signature on a message with this keypair's public key.
+    ///
+    /// # Return
+    ///
+    /// Returns `Ok(())` if the signature is valid, and `Err` otherwise.
+    #[allow(non_snake_case)]
+    fn verify(
+        &self,
+        message: &[u8],
+        signature: &Signature
+    ) -> Result<(), SignatureError>
+    {
+        let mut h: Sha512 = Sha512::new();
+        let R: EdwardsPoint;
+        let k: Scalar;
+        let minus_A: EdwardsPoint = -self.1;
+
+        h.input(signature.R().as_bytes());
+        h.input(self.as_bytes());
+        h.input(&message);
+
+        k = Scalar::from_hash(h);
+        R = EdwardsPoint::vartime_double_scalar_mul_basepoint(&k, &(minus_A), &signature.s());
+
+        if R.compress() == signature.R() {
+            Ok(())
+        } else {
+            Err(SignatureError::new())
         }
     }
 }

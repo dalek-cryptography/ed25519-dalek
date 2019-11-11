@@ -33,9 +33,9 @@ use serde::{Deserialize, Serialize};
 use serde::{Deserializer, Serializer};
 
 use crate::constants::*;
-use crate::errors::*;
 use crate::public::*;
 use crate::signature::*;
+use crate::SignatureError;
 
 /// An EdDSA secret key.
 #[derive(Default)] // we derive Default in order to use the clear() method in Drop
@@ -109,10 +109,7 @@ impl SecretKey {
     #[inline]
     pub fn from_bytes(bytes: &[u8]) -> Result<SecretKey, SignatureError> {
         if bytes.len() != SECRET_KEY_LENGTH {
-            return Err(SignatureError(InternalError::BytesLengthError {
-                name: "SecretKey",
-                length: SECRET_KEY_LENGTH,
-            }));
+            return Err(SignatureError::new());
         }
         let mut bits: [u8; 32] = [0u8; 32];
         bits.copy_from_slice(&bytes[..32]);
@@ -390,10 +387,7 @@ impl ExpandedSecretKey {
     #[inline]
     pub fn from_bytes(bytes: &[u8]) -> Result<ExpandedSecretKey, SignatureError> {
         if bytes.len() != EXPANDED_SECRET_KEY_LENGTH {
-            return Err(SignatureError(InternalError::BytesLengthError {
-                name: "ExpandedSecretKey",
-                length: EXPANDED_SECRET_KEY_LENGTH,
-            }));
+            return Err(SignatureError::new());
         }
         let mut lower: [u8; 32] = [0u8; 32];
         let mut upper: [u8; 32] = [0u8; 32];
@@ -430,7 +424,7 @@ impl ExpandedSecretKey {
         k = Scalar::from_hash(h);
         s = &(&k * &self.key) + &r;
 
-        Signature { R, s }
+        Signature::from_R_and_s(R, s)
     }
 
     /// Sign a `prehashed_message` with this `ExpandedSecretKey` using the
@@ -512,7 +506,7 @@ impl ExpandedSecretKey {
         k = Scalar::from_hash(h);
         s = &(&k * &self.key) + &r;
 
-        Signature { R, s }
+        Signature::from_R_and_s(R, s)
     }
 }
 

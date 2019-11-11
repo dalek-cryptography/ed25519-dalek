@@ -28,10 +28,11 @@ pub use curve25519_dalek::digest::Digest;
 #[cfg(all(feature = "batch", any(feature = "std", feature = "alloc")))]
 pub use crate::batch::*;
 pub use crate::constants::*;
-pub use crate::errors::*;
 pub use crate::public::*;
 pub use crate::secret::*;
 pub use crate::signature::*;
+
+use crate::{SignatureError, Signer, Verifier};
 
 /// An ed25519 keypair.
 #[derive(Debug, Default)] // we derive Default in order to use the clear() method in Drop
@@ -81,10 +82,7 @@ impl Keypair {
     /// is an `SignatureError` describing the error that occurred.
     pub fn from_bytes<'a>(bytes: &'a [u8]) -> Result<Keypair, SignatureError> {
         if bytes.len() != KEYPAIR_LENGTH {
-            return Err(SignatureError(InternalError::BytesLengthError {
-                name: "Keypair",
-                length: KEYPAIR_LENGTH,
-            }));
+            return Err(SignatureError::new());
         }
         let secret = SecretKey::from_bytes(&bytes[..SECRET_KEY_LENGTH])?;
         let public = PublicKey::from_bytes(&bytes[SECRET_KEY_LENGTH..])?;
@@ -133,13 +131,6 @@ impl Keypair {
         let pk: PublicKey = (&sk).into();
 
         Keypair{ public: pk, secret: sk }
-    }
-
-    /// Sign a message with this keypair's secret key.
-    pub fn sign(&self, message: &[u8]) -> Signature {
-        let expanded: ExpandedSecretKey = (&self.secret).into();
-
-        expanded.sign(&message, &self.public)
     }
 
     /// Sign a `prehashed_message` with this `Keypair` using the
@@ -247,16 +238,6 @@ impl Keypair {
         let expanded: ExpandedSecretKey = (&self.secret).into(); // xxx thanks i hate this
 
         expanded.sign_prehashed(prehashed_message, &self.public, context)
-    }
-
-    /// Verify a signature on a message with this keypair's public key.
-    pub fn verify(
-        &self,
-        message: &[u8],
-        signature: &Signature
-    ) -> Result<(), SignatureError>
-    {
-        self.public.verify(message, signature)
     }
 
     /// Verify a `signature` on a `prehashed_message` using the Ed25519ph algorithm.
@@ -397,6 +378,26 @@ impl Keypair {
     ) -> Result<(), SignatureError>
     {
         self.public.verify_strict(message, signature)
+    }
+}
+
+impl Signer<Signature> for Keypair {
+    /// Sign a message with this keypair's secret key.
+    fn try_sign(&self, message: &[u8]) -> Result<Signature, SignatureError> {
+        let expanded: ExpandedSecretKey = (&self.secret).into();
+        Ok(expanded.sign(&message, &self.public))
+    }
+}
+
+impl Verifier<Signature> for Keypair {
+    /// Verify a signature on a message with this keypair's public key.
+    fn verify(
+        &self,
+        message: &[u8],
+        signature: &Signature
+    ) -> Result<(), SignatureError>
+    {
+        self.public.verify(message, signature)
     }
 }
 

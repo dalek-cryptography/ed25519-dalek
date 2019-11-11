@@ -244,7 +244,7 @@ mod serialisation {
 
     #[test]
     fn serialize_deserialize_signature() {
-        let signature: Signature = Signature::from_bytes(&SIGNATURE_BYTES).unwrap();
+        let signature: Signature = Signature::from_bytes(&SIGNATURE_BYTES[..]).unwrap();
         let encoded_signature: Vec<u8> = serialize(&signature, Infinite).unwrap();
         let decoded_signature: Signature = deserialize(&encoded_signature).unwrap();
 
@@ -280,7 +280,7 @@ mod serialisation {
 
     #[test]
     fn serialize_signature_size() {
-        let signature: Signature = Signature::from_bytes(&SIGNATURE_BYTES).unwrap();
+        let signature: Signature = Signature::from_bytes(&SIGNATURE_BYTES[..]).unwrap();
         assert_eq!(serialized_size(&signature) as usize, 72); // These sizes are specific to bincode==1.0.1
     }
 

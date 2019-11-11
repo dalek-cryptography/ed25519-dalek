@@ -47,6 +47,7 @@
 //! # use ed25519_dalek::Signature;
 //! # let mut csprng = OsRng{};
 //! # let keypair: Keypair = Keypair::generate(&mut csprng);
+//! use ed25519_dalek::Signer;
 //! let message: &[u8] = b"This is a test of the tsunami alert system.";
 //! let signature: Signature = keypair.sign(message);
 //! # }
@@ -62,10 +63,12 @@
 //! # use rand::rngs::OsRng;
 //! # use ed25519_dalek::Keypair;
 //! # use ed25519_dalek::Signature;
+//! # use ed25519_dalek::Signer;
 //! # let mut csprng = OsRng{};
 //! # let keypair: Keypair = Keypair::generate(&mut csprng);
 //! # let message: &[u8] = b"This is a test of the tsunami alert system.";
 //! # let signature: Signature = keypair.sign(message);
+//! use ed25519_dalek::Verifier;
 //! assert!(keypair.verify(message, &signature).is_ok());
 //! # }
 //! ```
@@ -80,7 +83,8 @@
 //! # use rand::rngs::OsRng;
 //! # use ed25519_dalek::Keypair;
 //! # use ed25519_dalek::Signature;
-//! use ed25519_dalek::PublicKey;
+//! # use ed25519_dalek::Signer;
+//! use ed25519_dalek::{PublicKey, Verifier};
 //! # let mut csprng = OsRng{};
 //! # let keypair: Keypair = Keypair::generate(&mut csprng);
 //! # let message: &[u8] = b"This is a test of the tsunami alert system.";
@@ -104,7 +108,7 @@
 //! # extern crate ed25519_dalek;
 //! # fn main() {
 //! # use rand::rngs::OsRng;
-//! # use ed25519_dalek::{Keypair, Signature, PublicKey};
+//! # use ed25519_dalek::{Keypair, Signature, Signer, PublicKey};
 //! use ed25519_dalek::{PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH, KEYPAIR_LENGTH, SIGNATURE_LENGTH};
 //! # let mut csprng = OsRng{};
 //! # let keypair: Keypair = Keypair::generate(&mut csprng);
@@ -125,7 +129,7 @@
 //! # extern crate rand;
 //! # extern crate ed25519_dalek;
 //! # use rand::rngs::OsRng;
-//! # use ed25519_dalek::{Keypair, Signature, PublicKey, SecretKey, SignatureError};
+//! # use ed25519_dalek::{Keypair, Signature, Signer, PublicKey, SecretKey, SignatureError, SignatureTrait};
 //! # use ed25519_dalek::{PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH, KEYPAIR_LENGTH, SIGNATURE_LENGTH};
 //! # fn do_test() -> Result<(SecretKey, PublicKey, Keypair, Signature), SignatureError> {
 //! # let mut csprng = OsRng{};
@@ -140,7 +144,7 @@
 //! let public_key: PublicKey = PublicKey::from_bytes(&public_key_bytes)?;
 //! let secret_key: SecretKey = SecretKey::from_bytes(&secret_key_bytes)?;
 //! let keypair:    Keypair   = Keypair::from_bytes(&keypair_bytes)?;
-//! let signature:  Signature = Signature::from_bytes(&signature_bytes)?;
+//! let signature:  Signature = Signature::from_bytes(&signature_bytes[..])?;
 //! #
 //! # Ok((secret_key, public_key, keypair, signature))
 //! # }
@@ -241,24 +245,30 @@ extern crate std;
 extern crate alloc;
 extern crate clear_on_drop;
 extern crate curve25519_dalek;
+extern crate ed25519_crate;
 #[cfg(all(any(feature = "batch", feature = "batch_deterministic"), any(feature = "std", feature = "alloc")))]
 extern crate merlin;
 #[cfg(any(feature = "batch", feature = "std", feature = "alloc", test))]
 extern crate rand;
 #[cfg(feature = "serde")]
-extern crate serde;
+extern crate serde_crate as serde;
 extern crate sha2;
 
 #[cfg(all(any(feature = "batch", feature = "batch_deterministic"), any(feature = "std", feature = "alloc")))]
 mod batch;
 mod constants;
 mod ed25519;
-mod errors;
 mod public;
 mod secret;
 mod signature;
 
-// Export everything public in ed25519.
+/// Export everything public in ed25519.
 pub use crate::ed25519::*;
 #[cfg(all(any(feature = "batch", feature = "batch_deterministic"), any(feature = "std", feature = "alloc")))]
 pub use crate::batch::*;
+
+/// Re-export the `Signer` and `Verifier` types from the `signature` crate
+pub use ed25519_crate::signature::{Signer, Verifier};
+
+/// Signature errors
+pub type SignatureError = ed25519_crate::signature::Error;
