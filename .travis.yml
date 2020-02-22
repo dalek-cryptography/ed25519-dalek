@@ -26,6 +26,7 @@ matrix:
 
 script:
   - cargo $TEST_COMMAND --features="$FEATURES" $EXTRA_FLAGS
+  - cargo test --features=batch
 
 notifications:
   slack:
