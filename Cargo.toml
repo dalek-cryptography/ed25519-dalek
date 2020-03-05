@@ -33,7 +33,7 @@ zeroize = { version = "1", default-features = false, features = ["zeroize_derive
 [dev-dependencies]
 hex = "^0.4"
 bincode = "^0.9"
-criterion = "0.3"
+criterion = "0.3.0"
 rand = "0.7"
 
 [[bench]]
