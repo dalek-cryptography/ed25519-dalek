@@ -308,7 +308,7 @@ mod serialisation {
         let encoded_secret_key: Vec<u8> = bincode::serialize(&secret_key).unwrap();
         let decoded_secret_key: SecretKey = bincode::deserialize(&encoded_secret_key).unwrap();
 
-        for i in 0..32 {
+        for i in 0..SECRET_KEY_LENGTH {
             assert_eq!(SECRET_KEY_BYTES[i], decoded_secret_key.as_bytes()[i]);
         }
     }
@@ -319,8 +319,30 @@ mod serialisation {
         let encoded_secret_key = serde_json::to_string(&secret_key).unwrap();
         let decoded_secret_key: SecretKey = serde_json::from_str(&encoded_secret_key).unwrap();
 
-        for i in 0..32 {
+        for i in 0..SECRET_KEY_LENGTH {
             assert_eq!(SECRET_KEY_BYTES[i], decoded_secret_key.as_bytes()[i]);
+        }
+    }
+
+    #[test]
+    fn serialize_deserialize_expanded_secret_key_bincode() {
+        let expanded_secret_key = ExpandedSecretKey::from(&SecretKey::from_bytes(&SECRET_KEY_BYTES).unwrap());
+        let encoded_expanded_secret_key: Vec<u8> = bincode::serialize(&expanded_secret_key).unwrap();
+        let decoded_expanded_secret_key: ExpandedSecretKey = bincode::deserialize(&encoded_expanded_secret_key).unwrap();
+
+        for i in 0..EXPANDED_SECRET_KEY_LENGTH {
+            assert_eq!(expanded_secret_key.to_bytes()[i], decoded_expanded_secret_key.to_bytes()[i]);
+        }
+    }
+
+    #[test]
+    fn serialize_deserialize_expanded_secret_key_json() {
+        let expanded_secret_key = ExpandedSecretKey::from(&SecretKey::from_bytes(&SECRET_KEY_BYTES).unwrap());
+        let encoded_expanded_secret_key = serde_json::to_string(&expanded_secret_key).unwrap();
+        let decoded_expanded_secret_key: ExpandedSecretKey = serde_json::from_str(&encoded_expanded_secret_key).unwrap();
+
+        for i in 0..EXPANDED_SECRET_KEY_LENGTH {
+            assert_eq!(expanded_secret_key.to_bytes()[i], decoded_expanded_secret_key.to_bytes()[i]);
         }
     }
 
@@ -330,7 +352,7 @@ mod serialisation {
         let encoded_keypair: Vec<u8> = bincode::serialize(&keypair).unwrap();
         let decoded_keypair: Keypair = bincode::deserialize(&encoded_keypair).unwrap();
 
-        for i in 0..64 {
+        for i in 0..KEYPAIR_LENGTH {
             assert_eq!(KEYPAIR_BYTES[i], decoded_keypair.to_bytes()[i]);
         }
     }
@@ -341,7 +363,7 @@ mod serialisation {
         let encoded_keypair = serde_json::to_string(&keypair).unwrap();
         let decoded_keypair: Keypair = serde_json::from_str(&encoded_keypair).unwrap();
 
-        for i in 0..64 {
+        for i in 0..KEYPAIR_LENGTH {
             assert_eq!(KEYPAIR_BYTES[i], decoded_keypair.to_bytes()[i]);
         }
     }
@@ -373,5 +395,17 @@ mod serialisation {
     fn serialize_secret_key_size() {
         let secret_key: SecretKey = SecretKey::from_bytes(&SECRET_KEY_BYTES).unwrap();
         assert_eq!(bincode::serialized_size(&secret_key).unwrap() as usize, SECRET_KEY_LENGTH);
+    }
+
+    #[test]
+    fn serialize_expanded_secret_key_size() {
+        let expanded_secret_key = ExpandedSecretKey::from(&SecretKey::from_bytes(&SECRET_KEY_BYTES).unwrap());
+        assert_eq!(bincode::serialized_size(&expanded_secret_key).unwrap() as usize, EXPANDED_SECRET_KEY_LENGTH);
+    }
+
+    #[test]
+    fn serialize_keypair_size() {
+        let keypair = Keypair::from_bytes(&KEYPAIR_BYTES).unwrap();
+        assert_eq!(bincode::serialized_size(&keypair).unwrap() as usize, KEYPAIR_LENGTH);
     }
 }
