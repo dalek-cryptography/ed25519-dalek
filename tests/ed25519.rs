@@ -230,9 +230,6 @@ struct Demo {
 mod serialisation {
     use super::*;
 
-    use self::bincode::{serialize, serialized_size, deserialize, Infinite};
-    use self::toml;
-
     use ed25519::signature::Signature as _;
 
     static PUBLIC_KEY_BYTES: [u8; PUBLIC_KEY_LENGTH] = [
@@ -269,29 +266,29 @@ mod serialisation {
         035, 056, 000, 074, 130, 168, 225, 071, ];
 
     #[test]
-    fn serialize_deserialize_signature() {
+    fn serialize_deserialize_signature_bincode() {
         let signature: Signature = Signature::from_bytes(&SIGNATURE_BYTES).unwrap();
-        let encoded_signature: Vec<u8> = serialize(&signature, Infinite).unwrap();
-        let decoded_signature: Signature = deserialize(&encoded_signature).unwrap();
+        let encoded_signature: Vec<u8> = bincode::serialize(&signature).unwrap();
+        let decoded_signature: Signature = bincode::deserialize(&encoded_signature).unwrap();
 
         assert_eq!(signature, decoded_signature);
     }
 
     #[test]
-    fn serialize_deserialize_public_key() {
+    fn serialize_deserialize_public_key_bincode() {
         let public_key: PublicKey = PublicKey::from_bytes(&PUBLIC_KEY_BYTES).unwrap();
-        let encoded_public_key: Vec<u8> = serialize(&public_key, Infinite).unwrap();
-        let decoded_public_key: PublicKey = deserialize(&encoded_public_key).unwrap();
+        let encoded_public_key: Vec<u8> = bincode::serialize(&public_key).unwrap();
+        let decoded_public_key: PublicKey = bincode::deserialize(&encoded_public_key).unwrap();
 
         assert_eq!(&PUBLIC_KEY_BYTES[..], &encoded_public_key[encoded_public_key.len() - 32..]);
         assert_eq!(public_key, decoded_public_key);
     }
 
     #[test]
-    fn serialize_deserialize_secret_key() {
+    fn serialize_deserialize_secret_key_bincode() {
         let secret_key: SecretKey = SecretKey::from_bytes(&SECRET_KEY_BYTES).unwrap();
-        let encoded_secret_key: Vec<u8> = serialize(&secret_key, Infinite).unwrap();
-        let decoded_secret_key: SecretKey = deserialize(&encoded_secret_key).unwrap();
+        let encoded_secret_key: Vec<u8> = bincode::serialize(&secret_key).unwrap();
+        let decoded_secret_key: SecretKey = bincode::deserialize(&encoded_secret_key).unwrap();
 
         for i in 0..32 {
             assert_eq!(SECRET_KEY_BYTES[i], decoded_secret_key.as_bytes()[i]);
@@ -301,8 +298,8 @@ mod serialisation {
     #[test]
     fn serialize_deserialize_keypair_bincode() {
         let keypair = Keypair::from_bytes(&KEYPAIR_BYTES).unwrap();
-        let encoded_keypair: Vec<u8> = serialize(&keypair, Infinite).unwrap();
-        let decoded_keypair: Keypair = deserialize(&encoded_keypair).unwrap();
+        let encoded_keypair: Vec<u8> = bincode::serialize(&keypair).unwrap();
+        let decoded_keypair: Keypair = bincode::deserialize(&encoded_keypair).unwrap();
 
         for i in 0..64 {
             assert_eq!(KEYPAIR_BYTES[i], decoded_keypair.to_bytes()[i]);
@@ -323,18 +320,18 @@ mod serialisation {
     #[test]
     fn serialize_public_key_size() {
         let public_key: PublicKey = PublicKey::from_bytes(&PUBLIC_KEY_BYTES).unwrap();
-        assert_eq!(serialized_size(&public_key) as usize, 40); // These sizes are specific to bincode==1.0.1
+        assert_eq!(bincode::serialized_size(&public_key).unwrap() as usize, PUBLIC_KEY_LENGTH);
     }
 
     #[test]
     fn serialize_signature_size() {
         let signature: Signature = Signature::from_bytes(&SIGNATURE_BYTES).unwrap();
-        assert_eq!(serialized_size(&signature) as usize, 64); // These sizes are specific to bincode==1.0.1
+        assert_eq!(bincode::serialized_size(&signature).unwrap() as usize, SIGNATURE_LENGTH);
     }
 
     #[test]
     fn serialize_secret_key_size() {
         let secret_key: SecretKey = SecretKey::from_bytes(&SECRET_KEY_BYTES).unwrap();
-        assert_eq!(serialized_size(&secret_key) as usize, 40); // These sizes are specific to bincode==1.0.1
+        assert_eq!(bincode::serialized_size(&secret_key).unwrap() as usize, SECRET_KEY_LENGTH);
     }
 }
