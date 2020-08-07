@@ -275,12 +275,30 @@ mod serialisation {
     }
 
     #[test]
+    fn serialize_deserialize_signature_json() {
+        let signature: Signature = Signature::from_bytes(&SIGNATURE_BYTES).unwrap();
+        let encoded_signature = serde_json::to_string(&signature).unwrap();
+        let decoded_signature: Signature = serde_json::from_str(&encoded_signature).unwrap();
+
+        assert_eq!(signature, decoded_signature);
+    }
+
+    #[test]
     fn serialize_deserialize_public_key_bincode() {
         let public_key: PublicKey = PublicKey::from_bytes(&PUBLIC_KEY_BYTES).unwrap();
         let encoded_public_key: Vec<u8> = bincode::serialize(&public_key).unwrap();
         let decoded_public_key: PublicKey = bincode::deserialize(&encoded_public_key).unwrap();
 
-        assert_eq!(&PUBLIC_KEY_BYTES[..], &encoded_public_key[encoded_public_key.len() - 32..]);
+        assert_eq!(&PUBLIC_KEY_BYTES[..], &encoded_public_key[..]);
+        assert_eq!(public_key, decoded_public_key);
+    }
+
+    #[test]
+    fn serialize_deserialize_public_key_json() {
+        let public_key: PublicKey = PublicKey::from_bytes(&PUBLIC_KEY_BYTES).unwrap();
+        let encoded_public_key = serde_json::to_string(&public_key).unwrap();
+        let decoded_public_key: PublicKey = serde_json::from_str(&encoded_public_key).unwrap();
+
         assert_eq!(public_key, decoded_public_key);
     }
 
@@ -296,10 +314,32 @@ mod serialisation {
     }
 
     #[test]
+    fn serialize_deserialize_secret_key_json() {
+        let secret_key: SecretKey = SecretKey::from_bytes(&SECRET_KEY_BYTES).unwrap();
+        let encoded_secret_key = serde_json::to_string(&secret_key).unwrap();
+        let decoded_secret_key: SecretKey = serde_json::from_str(&encoded_secret_key).unwrap();
+
+        for i in 0..32 {
+            assert_eq!(SECRET_KEY_BYTES[i], decoded_secret_key.as_bytes()[i]);
+        }
+    }
+
+    #[test]
     fn serialize_deserialize_keypair_bincode() {
         let keypair = Keypair::from_bytes(&KEYPAIR_BYTES).unwrap();
         let encoded_keypair: Vec<u8> = bincode::serialize(&keypair).unwrap();
         let decoded_keypair: Keypair = bincode::deserialize(&encoded_keypair).unwrap();
+
+        for i in 0..64 {
+            assert_eq!(KEYPAIR_BYTES[i], decoded_keypair.to_bytes()[i]);
+        }
+    }
+
+    #[test]
+    fn serialize_deserialize_keypair_json() {
+        let keypair = Keypair::from_bytes(&KEYPAIR_BYTES).unwrap();
+        let encoded_keypair = serde_json::to_string(&keypair).unwrap();
+        let decoded_keypair: Keypair = serde_json::from_str(&encoded_keypair).unwrap();
 
         for i in 0..64 {
             assert_eq!(KEYPAIR_BYTES[i], decoded_keypair.to_bytes()[i]);
