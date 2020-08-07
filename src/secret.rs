@@ -22,9 +22,11 @@ use rand::{CryptoRng, RngCore};
 use sha2::Sha512;
 
 #[cfg(feature = "serde")]
+use serde::ser::SerializeTuple;
+#[cfg(feature = "serde")]
 use serde::de::Error as SerdeError;
 #[cfg(feature = "serde")]
-use serde::de::Visitor;
+use serde::de::{Visitor, SeqAccess};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "serde")]
@@ -182,7 +184,7 @@ impl Serialize for SecretKey {
     where
         S: Serializer,
     {
-        serializer.serialize_bytes(self.as_bytes())
+        self.to_bytes().serialize(serializer)
     }
 }
 
@@ -192,23 +194,8 @@ impl<'d> Deserialize<'d> for SecretKey {
     where
         D: Deserializer<'d>,
     {
-        struct SecretKeyVisitor;
-
-        impl<'d> Visitor<'d> for SecretKeyVisitor {
-            type Value = SecretKey;
-
-            fn expecting(&self, formatter: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-                formatter.write_str("An ed25519 secret key as 32 bytes, as specified in RFC8032.")
-            }
-
-            fn visit_bytes<E>(self, bytes: &[u8]) -> Result<SecretKey, E>
-            where
-                E: SerdeError,
-            {
-                SecretKey::from_bytes(bytes).or(Err(SerdeError::invalid_length(bytes.len(), &self)))
-            }
-        }
-        deserializer.deserialize_bytes(SecretKeyVisitor)
+        let bytes = <[u8; SECRET_KEY_LENGTH]>::deserialize(deserializer)?;
+        SecretKey::from_bytes(&bytes[..]).map_err(SerdeError::custom)
     }
 }
 
@@ -519,7 +506,13 @@ impl Serialize for ExpandedSecretKey {
     where
         S: Serializer,
     {
-        serializer.serialize_bytes(&self.to_bytes()[..])
+        let mut seq = serializer.serialize_tuple(EXPANDED_SECRET_KEY_LENGTH)?;
+
+        for byte in &self.to_bytes()[..] {
+            seq.serialize_element(byte)?;
+        }
+
+        seq.end()
     }
 }
 
@@ -532,7 +525,7 @@ impl<'d> Deserialize<'d> for ExpandedSecretKey {
         struct ExpandedSecretKeyVisitor;
 
         impl<'d> Visitor<'d> for ExpandedSecretKeyVisitor {
-            type Value = ExpandedSecretKey;
+            type Value = [u8; EXPANDED_SECRET_KEY_LENGTH];
 
             fn expecting(&self, formatter: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
                 formatter.write_str(
@@ -540,15 +533,25 @@ impl<'d> Deserialize<'d> for ExpandedSecretKey {
                 )
             }
 
-            fn visit_bytes<E>(self, bytes: &[u8]) -> Result<ExpandedSecretKey, E>
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
             where
-                E: SerdeError,
+                A: SeqAccess<'d>,
             {
-                ExpandedSecretKey::from_bytes(bytes)
-                    .or(Err(SerdeError::invalid_length(bytes.len(), &self)))
+                let mut arr = [0u8; EXPANDED_SECRET_KEY_LENGTH];
+
+                for (i, byte) in arr.iter_mut().enumerate() {
+                    *byte = seq
+                        .next_element()?
+                        .ok_or_else(|| SerdeError::invalid_length(i, &self))?;
+                }
+
+                Ok(arr)
             }
         }
-        deserializer.deserialize_bytes(ExpandedSecretKeyVisitor)
+
+        deserializer
+            .deserialize_tuple(EXPANDED_SECRET_KEY_LENGTH, ExpandedSecretKeyVisitor)
+            .and_then(|bytes| ExpandedSecretKey::from_bytes(&bytes[..]).map_err(SerdeError::custom))
     }
 }
 

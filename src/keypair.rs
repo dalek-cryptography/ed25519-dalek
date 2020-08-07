@@ -13,11 +13,11 @@
 use rand::{CryptoRng, RngCore};
 
 #[cfg(feature = "serde")]
+use serde::ser::SerializeTuple;
+#[cfg(feature = "serde")]
 use serde::de::Error as SerdeError;
 #[cfg(feature = "serde")]
-use serde::de::Visitor;
-#[cfg(feature = "serde")]
-use serde::de::SeqAccess;
+use serde::de::{Visitor, SeqAccess};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -427,7 +427,13 @@ impl Serialize for Keypair {
     where
         S: Serializer,
     {
-        serializer.serialize_bytes(&self.to_bytes()[..])
+        let mut seq = serializer.serialize_tuple(KEYPAIR_LENGTH)?;
+
+        for byte in &self.to_bytes()[..] {
+            seq.serialize_element(byte)?;
+        }
+
+        seq.end()
     }
 }
 
@@ -440,7 +446,7 @@ impl<'d> Deserialize<'d> for Keypair {
         struct KeypairVisitor;
 
         impl<'d> Visitor<'d> for KeypairVisitor {
-            type Value = Keypair;
+            type Value = [u8; KEYPAIR_LENGTH];
 
             fn expecting(&self, formatter: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
                 formatter.write_str("An ed25519 keypair, 64 bytes in total where the secret key is \
@@ -448,52 +454,24 @@ impl<'d> Deserialize<'d> for Keypair {
                                      32 bytes is a compressed point for a public key.")
             }
 
-            fn visit_bytes<E>(self, bytes: &[u8]) -> Result<Keypair, E>
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
             where
-                E: SerdeError,
+                A: SeqAccess<'d>,
             {
-                if bytes.len() != KEYPAIR_LENGTH {
-                    return Err(SerdeError::invalid_length(bytes.len(), &self));
+                let mut arr = [0u8; KEYPAIR_LENGTH];
+
+                for (i, byte) in arr.iter_mut().enumerate() {
+                    *byte = seq
+                        .next_element()?
+                        .ok_or_else(|| SerdeError::invalid_length(i, &self))?;
                 }
 
-                let secret_key = SecretKey::from_bytes(&bytes[..SECRET_KEY_LENGTH]);
-                let public_key = PublicKey::from_bytes(&bytes[SECRET_KEY_LENGTH..]);
-
-                if let (Ok(secret), Ok(public)) = (secret_key, public_key) {
-                    Ok(Keypair{ secret, public })
-                } else {
-                    Err(SerdeError::invalid_length(bytes.len(), &self))
-                }
+                Ok(arr)
             }
-
-            fn visit_seq<A>(self, mut seq: A) -> Result<Keypair, A::Error>
-            where
-                A: SeqAccess<'d>
-            {
-                if let Some(len) = seq.size_hint() {
-                    if len != KEYPAIR_LENGTH {
-                        return Err(SerdeError::invalid_length(len, &self));
-                    }
-                }
-
-                // TODO: We could do this with `MaybeUninit` to avoid unnecessary initialization costs
-                let mut bytes: [u8; KEYPAIR_LENGTH] = [0u8; KEYPAIR_LENGTH];
-
-                for i in 0..KEYPAIR_LENGTH {
-                    bytes[i] = seq.next_element()?.ok_or_else(|| SerdeError::invalid_length(i, &self))?;
-                }
-
-                let secret_key = SecretKey::from_bytes(&bytes[..SECRET_KEY_LENGTH]);
-                let public_key = PublicKey::from_bytes(&bytes[SECRET_KEY_LENGTH..]);
-
-                if let (Ok(secret), Ok(public)) = (secret_key, public_key) {
-                    Ok(Keypair{ secret, public })
-                } else {
-                    Err(SerdeError::invalid_length(bytes.len(), &self))
-                }
-            }
-
         }
-        deserializer.deserialize_bytes(KeypairVisitor)
+
+        deserializer
+            .deserialize_tuple(KEYPAIR_LENGTH, KeypairVisitor)
+            .and_then(|bytes| Keypair::from_bytes(&bytes[..]).map_err(SerdeError::custom))
     }
 }
