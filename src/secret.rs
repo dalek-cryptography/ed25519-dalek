@@ -9,7 +9,7 @@
 
 //! ed25519 secret key types.
 
-use core::fmt::Debug;
+use core::{fmt::Debug, iter};
 
 use curve25519_dalek::constants;
 use curve25519_dalek::digest::generic_array::typenum::U64;
@@ -401,8 +401,21 @@ impl ExpandedSecretKey {
     }
 
     /// Sign a message with this `ExpandedSecretKey`.
-    #[allow(non_snake_case)]
     pub fn sign(&self, message: &[u8], public_key: &PublicKey) -> ed25519::Signature {
+        self.sign_vectored(iter::once(message), public_key)
+    }
+
+    /// Sign a message with this `ExpandedSecretKey`.
+    ///
+    /// This method is provided for situations where the message isn't contiguous in memory.
+    /// `message_vectored` is a list of chunks which, when concatenated, form the message to be
+    /// signed.
+    #[allow(non_snake_case)]
+    pub fn sign_vectored(
+        &self,
+        message_vectored: impl Iterator<Item = impl AsRef<[u8]>> + Clone,
+        public_key: &PublicKey,
+    ) -> ed25519::Signature {
         let mut h: Sha512 = Sha512::new();
         let R: CompressedEdwardsY;
         let r: Scalar;
@@ -410,7 +423,9 @@ impl ExpandedSecretKey {
         let k: Scalar;
 
         h.update(&self.nonce);
-        h.update(&message);
+        for message_piece in message_vectored.clone() {
+            h.update(message_piece.as_ref());
+        }
 
         r = Scalar::from_hash(h);
         R = (&r * &constants::ED25519_BASEPOINT_TABLE).compress();
@@ -418,7 +433,9 @@ impl ExpandedSecretKey {
         h = Sha512::new();
         h.update(R.as_bytes());
         h.update(public_key.as_bytes());
-        h.update(&message);
+        for message_piece in message_vectored {
+            h.update(message_piece.as_ref());
+        }
 
         k = Scalar::from_hash(h);
         s = &(&k * &self.key) + &r;
