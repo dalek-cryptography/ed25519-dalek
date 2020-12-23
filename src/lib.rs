@@ -253,7 +253,7 @@ extern crate merlin;
 extern crate rand;
 #[cfg(feature = "serde")]
 extern crate serde_crate as serde;
-extern crate sha2;
+extern crate sha3;
 extern crate zeroize;
 
 #[cfg(all(any(feature = "batch", feature = "batch_deterministic"), any(feature = "std", feature = "alloc")))]

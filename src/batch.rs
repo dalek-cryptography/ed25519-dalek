@@ -35,7 +35,7 @@ use rand::thread_rng;
 #[cfg(all(not(feature = "batch"), feature = "batch_deterministic"))]
 use rand_core;
 
-use sha2::Sha512;
+use sha3::Sha3_512;
 
 use crate::errors::InternalError;
 use crate::errors::SignatureError;
@@ -243,7 +243,7 @@ pub fn verify_batch(
 
     // Compute H(R || A || M) for each (signature, public_key, message) triplet
     let hrams: Vec<Scalar> = (0..signatures.len()).map(|i| {
-        let mut h: Sha512 = Sha512::default();
+        let mut h: Sha3_512 = Sha3_512::default();
         h.update(signatures[i].R.as_bytes());
         h.update(public_keys[i].as_bytes());
         h.update(&messages[i]);

@@ -21,7 +21,7 @@ use curve25519_dalek::scalar::Scalar;
 
 use ed25519::signature::Verifier;
 
-pub use sha2::Sha512;
+pub use sha3::Sha3_512;
 
 #[cfg(feature = "serde")]
 use serde::de::Error as SerdeError;
@@ -54,7 +54,7 @@ impl AsRef<[u8]> for PublicKey {
 impl<'a> From<&'a SecretKey> for PublicKey {
     /// Derive this public key from its corresponding `SecretKey`.
     fn from(secret_key: &SecretKey) -> PublicKey {
-        let mut h: Sha512 = Sha512::new();
+        let mut h: Sha3_512 = Sha3_512::new();
         let mut hash: [u8; 64] = [0u8; 64];
         let mut digest: [u8; 32] = [0u8; 32];
 
@@ -190,7 +190,7 @@ impl PublicKey {
     {
         let signature = InternalSignature::try_from(signature)?;
 
-        let mut h: Sha512 = Sha512::default();
+        let mut h: Sha3_512 = Sha3_512::default();
         let R: EdwardsPoint;
         let k: Scalar;
 
@@ -288,7 +288,7 @@ impl PublicKey {
     {
         let signature = InternalSignature::try_from(signature)?;
 
-        let mut h: Sha512 = Sha512::new();
+        let mut h: Sha3_512 = Sha3_512::new();
         let R: EdwardsPoint;
         let k: Scalar;
         let minus_A: EdwardsPoint = -self.1;
@@ -334,7 +334,7 @@ impl Verifier<ed25519::Signature> for PublicKey {
     {
         let signature = InternalSignature::try_from(signature)?;
 
-        let mut h: Sha512 = Sha512::new();
+        let mut h: Sha3_512 = Sha3_512::new();
         let R: EdwardsPoint;
         let k: Scalar;
         let minus_A: EdwardsPoint = -self.1;

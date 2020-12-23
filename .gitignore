@@ -11,3 +11,5 @@ Cargo.lock
 *.bak
 
 *.s
+
+.idea/

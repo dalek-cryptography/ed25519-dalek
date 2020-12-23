@@ -13,7 +13,7 @@
 extern crate bincode;
 extern crate ed25519_dalek;
 extern crate hex;
-extern crate sha2;
+extern crate sha3;
 extern crate rand;
 #[cfg(all(test, feature = "serde"))]
 extern crate serde_crate;
@@ -24,7 +24,7 @@ use ed25519_dalek::*;
 
 use hex::FromHex;
 
-use sha2::Sha512;
+use sha3::Sha3_512;
 
 #[cfg(test)]
 mod vectors {
@@ -98,8 +98,8 @@ mod vectors {
         let keypair: Keypair  = Keypair{ secret: secret, public: public };
         let sig1: Signature = Signature::from_bytes(&sig_bytes[..]).unwrap();
 
-        let mut prehash_for_signing: Sha512 = Sha512::default();
-        let mut prehash_for_verifying: Sha512 = Sha512::default();
+        let mut prehash_for_signing: Sha3_512 = Sha3_512::default();
+        let mut prehash_for_verifying: Sha3_512 = Sha3_512::default();
 
         prehash_for_signing.update(&msg_bytes[..]);
         prehash_for_verifying.update(&msg_bytes[..]);
@@ -153,17 +153,17 @@ mod integrations {
 
         let mut csprng = OsRng{};
 
-        // ugh… there's no `impl Copy for Sha512`… i hope we can all agree these are the same hashes
-        let mut prehashed_good1: Sha512 = Sha512::default();
+        // ugh… there's no `impl Copy for Sha3_512`… i hope we can all agree these are the same hashes
+        let mut prehashed_good1: Sha3_512 = Sha3_512::default();
         prehashed_good1.update(good);
-        let mut prehashed_good2: Sha512 = Sha512::default();
+        let mut prehashed_good2: Sha3_512 = Sha3_512::default();
         prehashed_good2.update(good);
-        let mut prehashed_good3: Sha512 = Sha512::default();
+        let mut prehashed_good3: Sha3_512 = Sha3_512::default();
         prehashed_good3.update(good);
 
-        let mut prehashed_bad1: Sha512 = Sha512::default();
+        let mut prehashed_bad1: Sha3_512 = Sha3_512::default();
         prehashed_bad1.update(bad);
-        let mut prehashed_bad2: Sha512 = Sha512::default();
+        let mut prehashed_bad2: Sha3_512 = Sha3_512::default();
         prehashed_bad2.update(bad);
 
         let context: &[u8] = b"testing testing 1 2 3";
