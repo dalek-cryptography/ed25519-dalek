@@ -250,7 +250,7 @@ extern crate curve25519_dalek;
 #[cfg(all(any(feature = "batch", feature = "batch_deterministic"), any(feature = "std", feature = "alloc")))]
 extern crate merlin;
 #[cfg(any(feature = "batch", feature = "std", feature = "alloc", test))]
-extern crate rand;
+pub extern crate rand;
 #[cfg(feature = "serde")]
 extern crate serde_crate as serde;
 extern crate sha2;
