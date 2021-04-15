@@ -117,7 +117,6 @@ mod vectors {
 #[cfg(test)]
 mod integrations {
     use super::*;
-    use rand::rngs::OsRng;
 
     #[test]
     fn sign_verify() {  // TestSignVerify
@@ -128,9 +127,7 @@ mod integrations {
         let good: &[u8] = "test message".as_bytes();
         let bad:  &[u8] = "wrong message".as_bytes();
 
-        let mut csprng = OsRng{};
-
-        keypair  = Keypair::generate(&mut csprng);
+        keypair  = Keypair::generate();
         good_sig = keypair.sign(&good);
         bad_sig  = keypair.sign(&bad);
 
@@ -151,8 +148,6 @@ mod integrations {
         let good: &[u8] = b"test message";
         let bad:  &[u8] = b"wrong message";
 
-        let mut csprng = OsRng{};
-
         // ugh… there's no `impl Copy for Sha512`… i hope we can all agree these are the same hashes
         let mut prehashed_good1: Sha512 = Sha512::default();
         prehashed_good1.update(good);
@@ -168,7 +163,7 @@ mod integrations {
 
         let context: &[u8] = b"testing testing 1 2 3";
 
-        keypair  = Keypair::generate(&mut csprng);
+        keypair  = Keypair::generate();
         good_sig = keypair.sign_prehashed(prehashed_good1, Some(context)).unwrap();
         bad_sig  = keypair.sign_prehashed(prehashed_bad1,  Some(context)).unwrap();
 
@@ -191,12 +186,11 @@ mod integrations {
             b"Fuck dumbin' it down, spit ice, skip jewellery: Molotov cocktails on me like accessories.",
             b"Hey, I never cared about your bucks, so if I run up with a mask on, probably got a gas can too.",
             b"And I'm not here to fill 'er up. Nope, we came to riot, here to incite, we don't want any of your stuff.", ];
-        let mut csprng = OsRng{};
         let mut keypairs: Vec<Keypair> = Vec::new();
         let mut signatures: Vec<Signature> = Vec::new();
 
         for i in 0..messages.len() {
-            let keypair: Keypair = Keypair::generate(&mut csprng);
+            let keypair: Keypair = Keypair::generate();
             signatures.push(keypair.sign(&messages[i]));
             keypairs.push(keypair);
         }
@@ -209,8 +203,7 @@ mod integrations {
 
     #[test]
     fn pubkey_from_secret_and_expanded_secret() {
-        let mut csprng = OsRng{};
-        let secret: SecretKey = SecretKey::generate(&mut csprng);
+        let secret: SecretKey = SecretKey::generate();
         let expanded_secret: ExpandedSecretKey = (&secret).into();
         let public_from_secret: PublicKey = (&secret).into(); // XXX eww
         let public_from_expanded_secret: PublicKey = (&expanded_secret).into(); // XXX eww

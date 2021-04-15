@@ -18,7 +18,7 @@ use curve25519_dalek::edwards::CompressedEdwardsY;
 use curve25519_dalek::scalar::Scalar;
 
 #[cfg(feature = "rand")]
-use rand::{CryptoRng, RngCore};
+use rand::{rngs::OsRng, CryptoRng, RngCore};
 
 use sha2::Sha512;
 
@@ -116,24 +116,46 @@ impl SecretKey {
         Ok(SecretKey(bits))
     }
 
-    /// Generate a `SecretKey` from a `csprng`.
+    /// Generate `SecretKey`.
     ///
     /// # Example
     ///
     /// ```
-    /// extern crate rand;
     /// extern crate ed25519_dalek;
     ///
     /// # #[cfg(feature = "std")]
     /// # fn main() {
     /// #
-    /// use rand::rngs::OsRng;
+    /// use ed25519_dalek::SecretKey;
+    /// let secret_key = SecretKey::generate();
+    /// # }
+    /// #
+    /// # #[cfg(not(feature = "std"))]
+    /// # fn main() { }
+    /// ```
+    #[cfg(feature = "rand")]
+    pub fn generate() -> SecretKey {
+        Self::generate_with_rng(&mut OsRng {})
+    }
+
+    /// Generate a `SecretKey` from a `csprng`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// extern crate ed25519_dalek;
+    /// extern crate rand;
+    ///
+    /// # #[cfg(feature = "std")]
+    /// # fn main() {
+    /// #
     /// use ed25519_dalek::PublicKey;
     /// use ed25519_dalek::SecretKey;
     /// use ed25519_dalek::Signature;
+    /// use rand::rngs::OsRng;
     ///
     /// let mut csprng = OsRng{};
-    /// let secret_key: SecretKey = SecretKey::generate(&mut csprng);
+    /// let secret_key: SecretKey = SecretKey::generate_with_rng(&mut csprng);
     /// # }
     /// #
     /// # #[cfg(not(feature = "std"))]
@@ -143,18 +165,15 @@ impl SecretKey {
     /// Afterwards, you can generate the corresponding public:
     ///
     /// ```
-    /// # extern crate rand;
     /// # extern crate ed25519_dalek;
     /// #
     /// # fn main() {
     /// #
-    /// # use rand::rngs::OsRng;
     /// # use ed25519_dalek::PublicKey;
     /// # use ed25519_dalek::SecretKey;
     /// # use ed25519_dalek::Signature;
     /// #
-    /// # let mut csprng = OsRng{};
-    /// # let secret_key: SecretKey = SecretKey::generate(&mut csprng);
+    /// # let secret_key: SecretKey = SecretKey::generate();
     ///
     /// let public_key: PublicKey = (&secret_key).into();
     /// # }
@@ -164,7 +183,7 @@ impl SecretKey {
     ///
     /// A CSPRNG with a `fill_bytes()` method, e.g. `rand::OsRng`
     #[cfg(feature = "rand")]
-    pub fn generate<T>(csprng: &mut T) -> SecretKey
+    pub fn generate_with_rng<T>(csprng: &mut T) -> SecretKey
     where
         T: CryptoRng + RngCore,
     {
@@ -248,17 +267,14 @@ impl<'a> From<&'a SecretKey> for ExpandedSecretKey {
     /// # Examples
     ///
     /// ```
-    /// # extern crate rand;
     /// # extern crate sha2;
     /// # extern crate ed25519_dalek;
     /// #
     /// # fn main() {
     /// #
-    /// use rand::rngs::OsRng;
     /// use ed25519_dalek::{SecretKey, ExpandedSecretKey};
     ///
-    /// let mut csprng = OsRng{};
-    /// let secret_key: SecretKey = SecretKey::generate(&mut csprng);
+    /// let secret_key: SecretKey = SecretKey::generate();
     /// let expanded_secret_key: ExpandedSecretKey = ExpandedSecretKey::from(&secret_key);
     /// # }
     /// ```
@@ -294,18 +310,15 @@ impl ExpandedSecretKey {
     /// # Examples
     ///
     /// ```
-    /// # extern crate rand;
     /// # extern crate sha2;
     /// # extern crate ed25519_dalek;
     /// #
     /// # #[cfg(feature = "std")]
     /// # fn main() {
     /// #
-    /// use rand::rngs::OsRng;
     /// use ed25519_dalek::{SecretKey, ExpandedSecretKey};
     ///
-    /// let mut csprng = OsRng{};
-    /// let secret_key: SecretKey = SecretKey::generate(&mut csprng);
+    /// let secret_key: SecretKey = SecretKey::generate();
     /// let expanded_secret_key: ExpandedSecretKey = ExpandedSecretKey::from(&secret_key);
     /// let expanded_secret_key_bytes: [u8; 64] = expanded_secret_key.to_bytes();
     ///
@@ -334,7 +347,6 @@ impl ExpandedSecretKey {
     /// # Examples
     ///
     /// ```
-    /// # extern crate rand;
     /// # extern crate sha2;
     /// # extern crate ed25519_dalek;
     /// #
@@ -343,12 +355,10 @@ impl ExpandedSecretKey {
     /// # #[cfg(feature = "std")]
     /// # fn do_test() -> Result<ExpandedSecretKey, SignatureError> {
     /// #
-    /// use rand::rngs::OsRng;
     /// use ed25519_dalek::{SecretKey, ExpandedSecretKey};
     /// use ed25519_dalek::SignatureError;
     ///
-    /// let mut csprng = OsRng{};
-    /// let secret_key: SecretKey = SecretKey::generate(&mut csprng);
+    /// let secret_key: SecretKey = SecretKey::generate();
     /// let expanded_secret_key: ExpandedSecretKey = ExpandedSecretKey::from(&secret_key);
     /// let bytes: [u8; 64] = expanded_secret_key.to_bytes();
     /// let expanded_secret_key_again = ExpandedSecretKey::from_bytes(&bytes)?;
