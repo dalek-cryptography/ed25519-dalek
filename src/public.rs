@@ -34,6 +34,7 @@ use crate::constants::*;
 use crate::errors::*;
 use crate::secret::*;
 use crate::signature::*;
+use core::hash::{Hasher, Hash};
 
 /// An ed25519 public key.
 #[derive(Copy, Clone, Default, Eq, PartialEq)]
@@ -42,6 +43,12 @@ pub struct PublicKey(pub(crate) CompressedEdwardsY, pub(crate) EdwardsPoint);
 impl Debug for PublicKey {
     fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
         write!(f, "PublicKey({:?}), {:?})", self.0, self.1)
+    }
+}
+
+impl Hash for PublicKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.as_bytes().hash(state);
     }
 }
 

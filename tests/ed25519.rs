@@ -118,6 +118,7 @@ mod vectors {
 mod integrations {
     use super::*;
     use rand::rngs::OsRng;
+    use std::collections::HashMap;
 
     #[test]
     fn sign_verify() {  // TestSignVerify
@@ -216,6 +217,29 @@ mod integrations {
         let public_from_expanded_secret: PublicKey = (&expanded_secret).into(); // XXX eww
 
         assert!(public_from_secret == public_from_expanded_secret);
+    }
+
+    #[test]
+    fn public_key_hash_trait_check() {
+        let mut csprng = OsRng{};
+        let secret: SecretKey = SecretKey::generate(&mut csprng);
+        let expanded_secret: ExpandedSecretKey = (&secret).into();
+        let public_from_secret: PublicKey = (&secret).into();
+        let public_from_expanded_secret : PublicKey = (&expanded_secret).into();
+
+        let mut m = HashMap::new();
+        m.insert(public_from_secret, "Example_Public_Key");
+
+        if !m.contains_key(&public_from_expanded_secret) {
+            panic!("This shouldn't have happened if the Hash Eq was correct");
+        }
+
+        m.insert(public_from_expanded_secret, "Updated Value");
+
+        let (k, v) = m.get_key_value(&public_from_expanded_secret).unwrap();
+        assert_eq!(k, &public_from_secret);
+        assert_eq!(v.clone(), "Updated Value");
+        assert_eq!(m.len(), 1usize);
     }
 }
 
