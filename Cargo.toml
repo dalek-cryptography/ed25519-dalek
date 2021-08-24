@@ -64,6 +64,3 @@ u64_backend = ["curve25519-dalek/u64_backend"]
 u32_backend = ["curve25519-dalek/u32_backend"]
 simd_backend = ["curve25519-dalek/simd_backend"]
 
-[patch.crates-io]
-# Fixes for nightly-2021-07-21
-curve25519-dalek = { git = "https://github.com/jcape/curve25519-dalek.git", rev = "46d07765b228d43fe910eb6a1769143f8fc366bb" }
