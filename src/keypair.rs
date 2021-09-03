@@ -33,6 +33,7 @@ use crate::secret::*;
 
 /// An ed25519 keypair.
 #[derive(Debug)]
+#[cfg_attr(feature = "cloneable_secret_key", derive(Clone))]
 pub struct Keypair {
     /// The secret half of this keypair.
     pub secret: SecretKey,

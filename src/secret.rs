@@ -42,6 +42,7 @@ use crate::signature::*;
 /// fall out of scope.
 #[derive(Zeroize)]
 #[zeroize(drop)] // Overwrite secret key material with null bytes when it goes out of scope.
+#[cfg_attr(feature = "cloneable_secret_key", derive(Clone))]
 pub struct SecretKey(pub(crate) [u8; SECRET_KEY_LENGTH]);
 
 impl Debug for SecretKey {
