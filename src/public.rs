@@ -28,7 +28,7 @@ use serde::de::Error as SerdeError;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(feature = "serde")]
-use serde_bytes::{Bytes as SerdeBytes, ByteBuf as SerdeByteBuf};
+use serde_bytes::{ByteBuf as SerdeByteBuf, Bytes as SerdeBytes};
 
 use crate::constants::*;
 use crate::errors::*;
@@ -131,7 +131,8 @@ impl PublicKey {
             return Err(InternalError::BytesLengthError {
                 name: "PublicKey",
                 length: PUBLIC_KEY_LENGTH,
-            }.into());
+            }
+            .into());
         }
         let mut bits: [u8; 32] = [0u8; 32];
         bits.copy_from_slice(&bytes[..32]);
@@ -160,6 +161,43 @@ impl PublicKey {
         PublicKey(compressed, point)
     }
 
+    /// Create a [`BundledSignature`] object containing the information needed
+    /// to validate a provided `signature` on a provided `prehashed_message` and
+    /// `context with this key.
+    ///
+    /// Verifying the resulting `BundledSignature` object has the same behavior
+    /// as if you had called `verify_prehashed()`.
+    #[allow(non_snake_case)]
+    pub fn prepare_bundled_signature_prehashed<D>(
+        &self,
+        prehashed_message: D,
+        context: Option<&[u8]>,
+        signature: &ed25519::Signature,
+    ) -> Result<BundledSignature, SignatureError>
+    where
+        D: Digest<OutputSize = U64>,
+    {
+        let signature = InternalSignature::try_from(signature)?;
+
+        let mut h: Sha512 = Sha512::default();
+
+        let ctx: &[u8] = context.unwrap_or(b"");
+        debug_assert!(
+            ctx.len() <= 255,
+            "The context must not be longer than 255 octets."
+        );
+
+        h.update(b"SigEd25519 no Ed25519 collisions");
+        h.update(&[1]); // Ed25519ph
+        h.update(&[ctx.len() as u8]);
+        h.update(ctx);
+        h.update(signature.R.as_bytes());
+        h.update(self.as_bytes());
+        h.update(prehashed_message.finalize().as_slice());
+
+        Ok(BundledSignature::new(*self, h, signature))
+    }
+
     /// Verify a `signature` on a `prehashed_message` using the Ed25519ph algorithm.
     ///
     /// # Inputs
@@ -178,7 +216,6 @@ impl PublicKey {
     /// `Keypair` on the `prehashed_message`.
     ///
     /// [rfc8032]: https://tools.ietf.org/html/rfc8032#section-5.1
-    #[allow(non_snake_case)]
     pub fn verify_prehashed<D>(
         &self,
         prehashed_message: D,
@@ -188,33 +225,42 @@ impl PublicKey {
     where
         D: Digest<OutputSize = U64>,
     {
+        self.prepare_bundled_signature_prehashed(prehashed_message, context, signature)?
+            .verify()
+    }
+
+    /// Create a [`BundledSignature`] object containing the information needed
+    /// to strictly validate a provided `signature` on a provided `message` with this
+    /// key.
+    ///
+    /// Verifying the resulting `BundledSignature` object has the same behavior
+    /// as if you had called `verify_strict()`.
+    #[allow(non_snake_case)]
+    pub fn prepare_bundled_signature_strict(
+        &self,
+        message: &[u8],
+        signature: &ed25519::Signature,
+    ) -> Result<BundledSignature, SignatureError> {
         let signature = InternalSignature::try_from(signature)?;
 
-        let mut h: Sha512 = Sha512::default();
-        let R: EdwardsPoint;
-        let k: Scalar;
+        let mut h: Sha512 = Sha512::new();
+        let signature_R: EdwardsPoint;
 
-        let ctx: &[u8] = context.unwrap_or(b"");
-        debug_assert!(ctx.len() <= 255, "The context must not be longer than 255 octets.");
+        match signature.R.decompress() {
+            None => return Err(InternalError::VerifyError.into()),
+            Some(x) => signature_R = x,
+        }
 
-        let minus_A: EdwardsPoint = -self.1;
+        // Logical OR is fine here as we're not trying to be constant time.
+        if signature_R.is_small_order() || self.1.is_small_order() {
+            return Err(InternalError::VerifyError.into());
+        }
 
-        h.update(b"SigEd25519 no Ed25519 collisions");
-        h.update(&[1]); // Ed25519ph
-        h.update(&[ctx.len() as u8]);
-        h.update(ctx);
         h.update(signature.R.as_bytes());
         h.update(self.as_bytes());
-        h.update(prehashed_message.finalize().as_slice());
+        h.update(&message);
 
-        k = Scalar::from_hash(h);
-        R = EdwardsPoint::vartime_double_scalar_mul_basepoint(&k, &(minus_A), &signature.s);
-
-        if R.compress() == signature.R {
-            Ok(())
-        } else {
-            Err(InternalError::VerifyError.into())
-        }
+        Ok(BundledSignature::new(*self, h, signature))
     }
 
     /// Strictly verify a signature on a message with this keypair's public key.
@@ -279,43 +325,46 @@ impl PublicKey {
     /// # Return
     ///
     /// Returns `Ok(())` if the signature is valid, and `Err` otherwise.
-    #[allow(non_snake_case)]
     pub fn verify_strict(
         &self,
         message: &[u8],
         signature: &ed25519::Signature,
-    ) -> Result<(), SignatureError>
-    {
+    ) -> Result<(), SignatureError> {
+        self.prepare_bundled_signature_strict(message, signature)?
+            .verify()
+    }
+
+    /// Create a [`BundledSignature`] object containing the information needed
+    /// to validate a provided `signature` on a provided `message` with this
+    /// key.
+    ///
+    /// Verifying the resulting `BundledSignature` object has the same behavior
+    /// as if you had called `verify()`.
+    #[allow(non_snake_case)]
+    pub fn prepare_bundled_signature(
+        &self,
+        message: &[u8],
+        signature: &ed25519::Signature,
+    ) -> Result<BundledSignature, SignatureError> {
         let signature = InternalSignature::try_from(signature)?;
 
         let mut h: Sha512 = Sha512::new();
-        let R: EdwardsPoint;
-        let k: Scalar;
-        let minus_A: EdwardsPoint = -self.1;
-        let signature_R: EdwardsPoint;
-
-        match signature.R.decompress() {
-            None => return Err(InternalError::VerifyError.into()),
-            Some(x) => signature_R = x,
-        }
-
-        // Logical OR is fine here as we're not trying to be constant time.
-        if signature_R.is_small_order() || self.1.is_small_order() {
-            return Err(InternalError::VerifyError.into());
-        }
 
         h.update(signature.R.as_bytes());
         h.update(self.as_bytes());
         h.update(&message);
 
-        k = Scalar::from_hash(h);
-        R = EdwardsPoint::vartime_double_scalar_mul_basepoint(&k, &(minus_A), &signature.s);
+        Ok(BundledSignature::new(*self, h, signature))
+    }
 
-        if R == signature_R {
-            Ok(())
-        } else {
-            Err(InternalError::VerifyError.into())
+    /// Check whether a bundled signature/message/key combination is valid, and
+    /// its key matches this key.
+    pub fn verify_bundled(&self, bundled: &BundledSignature) -> Result<(), SignatureError> {
+        if !bundled.matches_key(self) {
+            return Err(InternalError::WrongKeyError.into());
         }
+
+        bundled.verify()
     }
 }
 
@@ -325,32 +374,8 @@ impl Verifier<ed25519::Signature> for PublicKey {
     /// # Return
     ///
     /// Returns `Ok(())` if the signature is valid, and `Err` otherwise.
-    #[allow(non_snake_case)]
-    fn verify(
-        &self,
-        message: &[u8],
-        signature: &ed25519::Signature
-    ) -> Result<(), SignatureError>
-    {
-        let signature = InternalSignature::try_from(signature)?;
-
-        let mut h: Sha512 = Sha512::new();
-        let R: EdwardsPoint;
-        let k: Scalar;
-        let minus_A: EdwardsPoint = -self.1;
-
-        h.update(signature.R.as_bytes());
-        h.update(self.as_bytes());
-        h.update(&message);
-
-        k = Scalar::from_hash(h);
-        R = EdwardsPoint::vartime_double_scalar_mul_basepoint(&k, &(minus_A), &signature.s);
-
-        if R.compress() == signature.R {
-            Ok(())
-        } else {
-            Err(InternalError::VerifyError.into())
-        }
+    fn verify(&self, message: &[u8], signature: &ed25519::Signature) -> Result<(), SignatureError> {
+        self.prepare_bundled_signature(message, signature)?.verify()
     }
 }
 
@@ -372,5 +397,66 @@ impl<'d> Deserialize<'d> for PublicKey {
     {
         let bytes = <SerdeByteBuf>::deserialize(deserializer)?;
         PublicKey::from_bytes(bytes.as_ref()).map_err(SerdeError::custom)
+    }
+}
+
+/// A `BundledSignature` contains a signature, plus the information from the
+/// message and public key needed to check it.
+///
+/// Under some circumstances, you may want want to bundle the information needed
+/// to verify a signature later on (in another thread, say).  That's easy enough
+/// if your protocol uses the "precomputed hash" variant of ed25519, but
+/// otherwise it  can become unwieldy (say, if your message is very large, and
+/// passing it by reference is inconvenient).
+///
+/// Instead, you can use one of the `prepare_bundled_signature*()` functions
+/// from [`PublicKey`] to create a (comparatively) small [`BundledSignature`].
+/// The `BundledSignature` contains the public key, the signature, and the
+/// necessary SHA512 hash that Ed25519 uses internally to verify that the
+/// signature is correct for the given public key and message.
+#[derive(Clone, Debug)]
+pub struct BundledSignature {
+    public_key: PublicKey,
+    k: Scalar,
+    signature: InternalSignature,
+}
+
+impl BundledSignature {
+    /// Construct a new BundledSignature from its parts.
+    fn new(public_key: PublicKey, h: Sha512, signature: InternalSignature) -> Self {
+        let k = Scalar::from_hash(h);
+        Self {
+            public_key,
+            k,
+            signature,
+        }
+    }
+
+    /// Check whether this signature/message/key combination contains a valid
+    /// signature.
+    ///
+    /// # Return
+    ///
+    ///  Returns `Ok(())` if the signature is valid, and `Err` otherwise.
+    #[allow(non_snake_case)]
+    #[inline]
+    pub fn verify(&self) -> Result<(), SignatureError> {
+        let minus_A: EdwardsPoint = -self.public_key.1;
+        let R = EdwardsPoint::vartime_double_scalar_mul_basepoint(
+            &self.k,
+            &(minus_A),
+            &self.signature.s,
+        );
+
+        if R.compress() == self.signature.R {
+            Ok(())
+        } else {
+            Err(InternalError::VerifyError.into())
+        }
+    }
+
+    /// Return true if this BundledSignature was constructed with the public key `key`.
+    pub fn matches_key(&self, key: &PublicKey) -> bool {
+        &self.public_key == key
     }
 }
