@@ -89,6 +89,16 @@ impl PublicKey {
         &(self.0).0
     }
 
+    /// Check whether this key is represented by a point in a smaller torsion subgroup
+    pub fn is_small_order_point(&self) -> bool {
+        self.1.is_small_order()
+    }
+
+    /// Check whether this key is represented by a point that is in a larger prime-order subgroup
+    pub fn is_prime_subgroup_point(&self) -> bool {
+        self.1.is_torsion_free()
+    }
+
     /// Construct a `PublicKey` from a slice of bytes.
     ///
     /// # Warning
