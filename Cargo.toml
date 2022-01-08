@@ -58,6 +58,7 @@ batch = ["merlin", "rand"]
 # This feature enables deterministic batch verification.
 batch_deterministic = ["merlin", "rand", "rand_core"]
 asm = ["sha2/asm"]
+sha2-force-soft = ["sha2/force-soft"]
 # This features turns off stricter checking for scalar malleability in signatures
 legacy_compatibility = []
 u64_backend = ["curve25519-dalek/u64_backend"]
