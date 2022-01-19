@@ -29,7 +29,6 @@ use sha2::Sha512;
 #[cfg(test)]
 mod vectors {
     use curve25519_dalek::{edwards::EdwardsPoint, scalar::Scalar};
-    use ed25519::signature::Signature as _;
     use sha2::{digest::Digest, Sha512};
     use std::convert::TryFrom;
 
@@ -124,9 +123,9 @@ mod vectors {
 
     fn compute_hram(message: &[u8], pub_key: &EdwardsPoint, signature_r: &EdwardsPoint) -> Scalar {
         let k_bytes = Sha512::default()
-            .chain(&signature_r.compress().as_bytes())
-            .chain(&pub_key.compress().as_bytes()[..])
-            .chain(&message);
+            .chain_update(&signature_r.compress().as_bytes())
+            .chain_update(&pub_key.compress().as_bytes()[..])
+            .chain_update(&message);
         let mut k_output = [0u8; 64];
         k_output.copy_from_slice(k_bytes.finalize().as_slice());
         Scalar::from_bytes_mod_order_wide(&k_output)

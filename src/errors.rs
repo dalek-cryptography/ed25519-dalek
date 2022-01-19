@@ -19,7 +19,6 @@ use core::fmt::Display;
 #[cfg(feature = "std")]
 use std::error::Error;
 
-
 /// Internal errors.  Most application-level developers will likely not
 /// need to pay any attention to these.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
@@ -39,8 +38,9 @@ pub(crate) enum InternalError {
     VerifyError,
     /// Two arrays did not match in size, making the called signature
     /// verification method impossible.
-    // ArrayLengthError is only constructed when "batch" is enabled
-    #[cfg_attr(not(feature = "batch"), allow(dead_code))]
+    // ArrayLengthError is only constructed in verify_batch, so match its cfg.
+    #[cfg(all(any(feature = "batch", feature = "batch_deterministic"),
+              any(feature = "alloc", feature = "std")))]
     ArrayLengthError{ name_a: &'static str, length_a: usize,
                       name_b: &'static str, length_b: usize,
                       name_c: &'static str, length_c: usize, },
@@ -59,6 +59,8 @@ impl Display for InternalError {
                 => write!(f, "{} must be {} bytes in length", n, l),
             InternalError::VerifyError
                 => write!(f, "Verification equation was not satisfied"),
+            #[cfg(all(any(feature = "batch", feature = "batch_deterministic"),
+                      any(feature = "alloc", feature = "std")))]
             InternalError::ArrayLengthError{ name_a: na, length_a: la,
                                              name_b: nb, length_b: lb,
                                              name_c: nc, length_c: lc, }
