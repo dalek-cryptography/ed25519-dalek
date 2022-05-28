@@ -239,7 +239,7 @@ To enable [serde](https://serde.rs) support, build `ed25519-dalek` with the
 
 By default, `ed25519-dalek` builds against `curve25519-dalek`'s `u64_backend`
 feature, which uses Rust's `i128` feature to achieve roughly double the speed as
-the `u32_backend` feature.  When targetting 32-bit systems, however, you'll
+the `u32_backend` feature.  When targeting 32-bit systems, however, you'll
 likely want to compile with `cargo build --no-default-features
 --features="u32_backend"`.  If you're building for a machine with avx2
 instructions, there's also the experimental `simd_backend`s, currently
