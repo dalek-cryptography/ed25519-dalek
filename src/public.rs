@@ -51,10 +51,11 @@ impl AsRef<[u8]> for PublicKey {
     }
 }
 
-impl<'a> From<&'a SecretKey> for PublicKey {
-    /// Derive this public key from its corresponding `SecretKey`.
-    fn from(secret_key: &SecretKey) -> PublicKey {
-        let mut h: Sha512 = Sha512::new();
+impl PublicKey {
+    /// Derive this public key from its corresponding `SecretKey` using
+    /// the specified hasher
+    pub fn from_secret_digest<D: Digest<OutputSize = U64>>(secret_key: &SecretKey) -> PublicKey {
+        let mut h: D = D::new();
         let mut hash: [u8; 64] = [0u8; 64];
         let mut digest: [u8; 32] = [0u8; 32];
 
@@ -64,6 +65,13 @@ impl<'a> From<&'a SecretKey> for PublicKey {
         digest.copy_from_slice(&hash[..32]);
 
         PublicKey::mangle_scalar_bits_and_multiply_by_basepoint_to_produce_public_key(&mut digest)
+    }
+}
+
+impl<'a> From<&'a SecretKey> for PublicKey {
+    /// Derive this public key from its corresponding `SecretKey`.
+    fn from(secret_key: &SecretKey) -> PublicKey {
+        Self::from_secret_digest::<Sha512>(secret_key)
     }
 }
 
@@ -317,16 +325,14 @@ impl PublicKey {
             Err(InternalError::VerifyError.into())
         }
     }
-}
 
-impl Verifier<ed25519::Signature> for PublicKey {
-    /// Verify a signature on a message with this keypair's public key.
+    /// Verify a signature on a message with this keypair's public key and the specified hasher.
     ///
     /// # Return
     ///
     /// Returns `Ok(())` if the signature is valid, and `Err` otherwise.
     #[allow(non_snake_case)]
-    fn verify(
+    pub fn verify_digest<D: Digest<OutputSize=U64>>(
         &self,
         message: &[u8],
         signature: &ed25519::Signature
@@ -334,7 +340,7 @@ impl Verifier<ed25519::Signature> for PublicKey {
     {
         let signature = InternalSignature::try_from(signature)?;
 
-        let mut h: Sha512 = Sha512::new();
+        let mut h: D = D::new();
         let R: EdwardsPoint;
         let k: Scalar;
         let minus_A: EdwardsPoint = -self.1;
@@ -351,6 +357,23 @@ impl Verifier<ed25519::Signature> for PublicKey {
         } else {
             Err(InternalError::VerifyError.into())
         }
+    }
+}
+
+impl Verifier<ed25519::Signature> for PublicKey {
+    /// Verify a signature on a message with this keypair's public key.
+    ///
+    /// # Return
+    ///
+    /// Returns `Ok(())` if the signature is valid, and `Err` otherwise.
+    #[allow(non_snake_case)]
+    fn verify(
+        &self,
+        message: &[u8],
+        signature: &ed25519::Signature
+    ) -> Result<(), SignatureError>
+    {
+        self.verify_digest::<Sha512>(message, signature)
     }
 }
 
