@@ -535,16 +535,12 @@ mod test {
 
     #[test]
     fn secret_key_zeroize_on_drop() {
-        let secret_ptr: *const u8;
-
-        { // scope for the secret to ensure it's been dropped
-            let secret = SecretKey::from_bytes(&[0x15u8; 32][..]).unwrap();
-
-            secret_ptr = secret.0.as_ptr();
+        let mut secret = SecretKey::from_bytes(&[0x15u8; 32][..]).unwrap();
+        // Call the Drop impl for SecretKey without deallocating it,
+        // so that we can inspect a dropped instance.
+        unsafe {
+            core::ptr::drop_in_place(&mut secret);
         }
-
-        let memory: &[u8] = unsafe { ::std::slice::from_raw_parts(secret_ptr, 32) };
-
-        assert!(!memory.contains(&0x15));
+        assert!(!secret.0.contains(&0x15));
     }
 }
