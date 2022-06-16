@@ -397,12 +397,19 @@ impl ExpandedSecretKey {
     /// Sign a message with this `ExpandedSecretKey`.
     #[allow(non_snake_case)]
     pub fn sign(&self, message: &[u8], public_key: &PublicKey) -> ed25519::Signature {
-        self.sign_digest::<Sha512>(message, public_key)
+        self.sign_digest_internal::<Sha512>(message, public_key)
     }
 
     /// Sign a message with this `ExpandedSecretKey` using the provided digest.
+    #[cfg(feature = "yolo_crypto")]
     #[allow(non_snake_case)]
     pub fn sign_digest<D: Digest<OutputSize=U64>>(&self, message: &[u8], public_key: &PublicKey) -> ed25519::Signature {
+        self.sign_digest_internal::<D>(message, public_key)
+    }
+
+    /// Internal method to sign a message with this `ExpandedSecretKey` generic over digest type.
+    #[allow(non_snake_case)]
+    fn sign_digest_internal<D: Digest<OutputSize=U64>>(&self, message: &[u8], public_key: &PublicKey) -> ed25519::Signature {
         let mut h: D = D::new();
         let R: CompressedEdwardsY;
         let r: Scalar;

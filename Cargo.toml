@@ -63,3 +63,5 @@ legacy_compatibility = []
 u64_backend = ["curve25519-dalek/u64_backend"]
 u32_backend = ["curve25519-dalek/u32_backend"]
 simd_backend = ["curve25519-dalek/simd_backend"]
+# This feature exposes unverified internals for compatibility with non-spec-compliant 25519 implementations
+yolo_crypto = []

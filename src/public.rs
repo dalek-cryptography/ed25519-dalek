@@ -51,10 +51,23 @@ impl AsRef<[u8]> for PublicKey {
     }
 }
 
+impl<'a> From<&'a SecretKey> for PublicKey {
+    /// Derive this public key from its corresponding `SecretKey`.
+    fn from(secret_key: &SecretKey) -> PublicKey {
+        Self::from_secret_digest_internal::<Sha512>(secret_key)
+    }
+}
+
 impl PublicKey {
     /// Derive this public key from its corresponding `SecretKey` using
     /// the specified hasher
+    #[cfg(feature = "yolo_crypto")]
     pub fn from_secret_digest<D: Digest<OutputSize = U64>>(secret_key: &SecretKey) -> PublicKey {
+        Self::from_secret_digest_internal::<D>(secret_key)
+    }
+
+    /// Internal key derivation function, generic over digest type
+    fn from_secret_digest_internal<D: Digest<OutputSize = U64>>(secret_key: &SecretKey) -> PublicKey {
         let mut h: D = D::new();
         let mut hash: [u8; 64] = [0u8; 64];
         let mut digest: [u8; 32] = [0u8; 32];
@@ -65,13 +78,6 @@ impl PublicKey {
         digest.copy_from_slice(&hash[..32]);
 
         PublicKey::mangle_scalar_bits_and_multiply_by_basepoint_to_produce_public_key(&mut digest)
-    }
-}
-
-impl<'a> From<&'a SecretKey> for PublicKey {
-    /// Derive this public key from its corresponding `SecretKey`.
-    fn from(secret_key: &SecretKey) -> PublicKey {
-        Self::from_secret_digest::<Sha512>(secret_key)
     }
 }
 
@@ -331,8 +337,20 @@ impl PublicKey {
     /// # Return
     ///
     /// Returns `Ok(())` if the signature is valid, and `Err` otherwise.
+    #[cfg(feature = "yolo_crypto")]
     #[allow(non_snake_case)]
     pub fn verify_digest<D: Digest<OutputSize=U64>>(
+        &self,
+        message: &[u8],
+        signature: &ed25519::Signature
+    ) -> Result<(), SignatureError>
+    {
+        self.verify_digest_internal::<D>(message, signature)
+    }
+
+    /// Internal verify method, generic over digest type
+    #[allow(non_snake_case)]
+    fn verify_digest_internal<D: Digest<OutputSize=U64>>(
         &self,
         message: &[u8],
         signature: &ed25519::Signature
@@ -357,7 +375,7 @@ impl PublicKey {
         } else {
             Err(InternalError::VerifyError.into())
         }
-    }
+    }    
 }
 
 impl Verifier<ed25519::Signature> for PublicKey {
@@ -373,7 +391,7 @@ impl Verifier<ed25519::Signature> for PublicKey {
         signature: &ed25519::Signature
     ) -> Result<(), SignatureError>
     {
-        self.verify_digest::<Sha512>(message, signature)
+        self.verify_digest_internal::<Sha512>(message, signature)
     }
 }
 
