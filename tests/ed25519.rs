@@ -281,6 +281,33 @@ mod integrations {
         assert!(result.is_ok());
     }
 
+    #[cfg(all(feature = "batch", feature = "heapless"))]
+    #[test]
+    fn verify_batch_n_seven_signatures() {
+        let messages: [&[u8]; 7] = [
+            b"Watch closely everyone, I'm going to show you how to kill a god.",
+            b"I'm not a cryptographer I just encrypt a lot.",
+            b"Still not a cryptographer.",
+            b"This is a test of the tsunami alert system. This is only a test.",
+            b"Fuck dumbin' it down, spit ice, skip jewellery: Molotov cocktails on me like accessories.",
+            b"Hey, I never cared about your bucks, so if I run up with a mask on, probably got a gas can too.",
+            b"And I'm not here to fill 'er up. Nope, we came to riot, here to incite, we don't want any of your stuff.", ];
+        let mut csprng = OsRng{};
+        let mut keypairs: Vec<Keypair> = Vec::new();
+        let mut signatures: Vec<Signature> = Vec::new();
+
+        for i in 0..messages.len() {
+            let keypair: Keypair = Keypair::generate(&mut csprng);
+            signatures.push(keypair.sign(&messages[i]));
+            keypairs.push(keypair);
+        }
+        let public_keys: Vec<PublicKey> = keypairs.iter().map(|key| key.public).collect();
+
+        let result = verify_batch_n::<8>(&messages, &signatures[..], &public_keys[..], 7);
+
+        assert!(result.is_ok());
+    }
+
     #[test]
     fn pubkey_from_secret_and_expanded_secret() {
         let mut csprng = OsRng{};

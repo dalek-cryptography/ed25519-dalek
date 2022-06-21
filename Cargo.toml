@@ -31,6 +31,8 @@ serde_crate = { package = "serde", version = "1.0", default-features = false, op
 serde_bytes = { version = "0.11", optional = true }
 sha2 = { version = "0.9", default-features = false }
 zeroize = { version = "~1.3", default-features = false }
+array-macro = "2.1.5"
+heapless = { version = "0.7.14", optional = true }
 
 [dev-dependencies]
 hex = "^0.4"

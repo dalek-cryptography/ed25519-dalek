@@ -8,6 +8,66 @@
 // - isis agora lovecruft <isis@patternsinthevoid.net>
 
 //! Batch signature verification.
+//! 
+//! # Notes on Nonce Generation & Malleability
+//!
+//! ## On Synthetic Nonces
+//!
+//! This library defaults to using what is called "synthetic" nonces, which
+//! means that a mixture of deterministic (per any unique set of inputs to this
+//! function) data and system randomness is used to seed the CSPRNG for nonce
+//! generation.  For more of the background theory on why many cryptographers
+//! currently believe this to be superior to either purely deterministic
+//! generation or purely relying on the system's randomness, see [this section
+//! of the Merlin design](https://merlin.cool/transcript/rng.html) by Henry de
+//! Valence, isis lovecruft, and Oleg Andreev, as well as Trevor Perrin's
+//! [designs for generalised
+//! EdDSA](https://moderncrypto.org/mail-archive/curves/2017/000925.html).
+//!
+//! ## On Deterministic Nonces
+//!
+//! In order to be ammenable to protocols which require stricter third-party
+//! auditability trails, such as in some financial cryptographic settings, this
+//! library also supports a `--features=batch_deterministic` setting, where the
+//! nonces for batch signature verification are derived purely from the inputs
+//! to this function themselves.
+//!
+//! **This is not recommended for use unless you have several cryptographers on
+//!   staff who can advise you in its usage and all the horrible, terrible,
+//!   awful ways it can go horribly, terribly, awfully wrong.**
+//!
+//! In any sigma protocol it is wise to include as much context pertaining
+//! to the public state in the protocol as possible, to avoid malleability
+//! attacks where an adversary alters publics in an algebraic manner that
+//! manages to satisfy the equations for the protocol in question.
+//!
+//! For ed25519 batch verification (both with synthetic and deterministic nonce
+//! generation), we include the following as scalars in the protocol transcript:
+//!
+//! * All of the computed `H(R||A||M)`s to the protocol transcript, and
+//! * All of the `s` components of each signature.
+//!
+//! Each is also prefixed with their index in the vector.
+//!
+//! The former, while not quite as elegant as adding the `R`s, `A`s, and
+//! `M`s separately, saves us a bit of context hashing since the
+//! `H(R||A||M)`s need to be computed for the verification equation anyway.
+//!
+//! The latter prevents a malleability attack only found in deterministic batch
+//! signature verification (i.e. only when compiling `ed25519-dalek` with
+//! `--features batch_deterministic`) wherein an adversary, without access
+//! to the signing key(s), can take any valid signature, `(s,R)`, and swap
+//! `s` with `s' = -z1`.  This doesn't contitute a signature forgery, merely
+//! a vulnerability, as the resulting signature will not pass single
+//! signature verification.  (Thanks to Github users @real_or_random and
+//! @jonasnick for pointing out this malleability issue.)
+//!
+//! For an additional way in which signatures can be made to probabilistically
+//! falsely "pass" the synthetic batch verification equation *for the same
+//! inputs*, but *only some crafted inputs* will pass the deterministic batch
+//! single, and neither of these will ever pass single signature verification,
+//! see the documentation for [`PublicKey.validate()`].
+//!
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -25,7 +85,7 @@ use curve25519_dalek::scalar::Scalar;
 use curve25519_dalek::traits::IsIdentity;
 use curve25519_dalek::traits::VartimeMultiscalarMul;
 
-pub use curve25519_dalek::digest::Digest;
+use curve25519_dalek::digest::Digest;
 
 use merlin::Transcript;
 
@@ -37,14 +97,19 @@ use rand_core;
 
 use sha2::Sha512;
 
+// Used for static array init via (barely) unsafe transmute
+// (easily implemented here but avoids `#[forbid(unsafe)]`)
+use array_macro::array;
+
+
 use crate::errors::InternalError;
 use crate::errors::SignatureError;
 use crate::public::PublicKey;
 use crate::signature::InternalSignature;
 
 trait BatchTranscript {
-    fn append_scalars(&mut self, scalars: &Vec<Scalar>);
-    fn append_message_lengths(&mut self, message_lengths: &Vec<usize>);
+    fn append_scalars(&mut self, scalars: &[Scalar]);
+    fn append_message_lengths(&mut self, message_lengths: &[usize]);
 }
 
 impl BatchTranscript for Transcript {
@@ -56,7 +121,7 @@ impl BatchTranscript for Transcript {
     /// * All of the `s` components of each signature.
     ///
     /// Each is also prefixed with their index in the vector.
-    fn append_scalars(&mut self, scalars: &Vec<Scalar>) {
+    fn append_scalars(&mut self, scalars: &[Scalar]) {
         for (i, scalar) in scalars.iter().enumerate() {
             self.append_u64(b"", i as u64);
             self.append_message(b"hram", scalar.as_bytes());
@@ -69,7 +134,7 @@ impl BatchTranscript for Transcript {
     /// against the unlikely event of collisions.  However, a nicer way to do
     /// this would be to append the message length before the message, but this
     /// is messy w.r.t. the calculations of the `H(R||A||M)`s above.
-    fn append_message_lengths(&mut self, message_lengths: &Vec<usize>) {
+    fn append_message_lengths(&mut self, message_lengths: &[usize]) {
         for (i, len) in message_lengths.iter().enumerate() {
             self.append_u64(b"", i as u64);
             self.append_u64(b"mlen", *len as u64);
@@ -117,7 +182,11 @@ fn zero_rng() -> ZeroRng {
     ZeroRng {}
 }
 
-/// Verify a batch of `signatures` on `messages` with their respective `public_keys`.
+/// Verify a batch of `signatures` on `messages` with their respective `public_keys` (dynamically allocated).
+/// 
+/// Uses `alloc` to support large numbers of messages.
+/// 
+/// See the [module level docs](crate::batch) for notes on Synthetic and Deterministic nonces relevant to batch implementations.
 ///
 /// # Inputs
 ///
@@ -127,68 +196,9 @@ fn zero_rng() -> ZeroRng {
 ///
 /// # Returns
 ///
-/// * A `Result` whose `Ok` value is an emtpy tuple and whose `Err` value is a
+/// * A `Result` whose `Ok` value is an empty tuple and whose `Err` value is a
 ///   `SignatureError` containing a description of the internal error which
-///   occured.
-///
-/// # Notes on Nonce Generation & Malleability
-///
-/// ## On Synthetic Nonces
-///
-/// This library defaults to using what is called "synthetic" nonces, which
-/// means that a mixture of deterministic (per any unique set of inputs to this
-/// function) data and system randomness is used to seed the CSPRNG for nonce
-/// generation.  For more of the background theory on why many cryptographers
-/// currently believe this to be superior to either purely deterministic
-/// generation or purely relying on the system's randomness, see [this section
-/// of the Merlin design](https://merlin.cool/transcript/rng.html) by Henry de
-/// Valence, isis lovecruft, and Oleg Andreev, as well as Trevor Perrin's
-/// [designs for generalised
-/// EdDSA](https://moderncrypto.org/mail-archive/curves/2017/000925.html).
-///
-/// ## On Deterministic Nonces
-///
-/// In order to be ammenable to protocols which require stricter third-party
-/// auditability trails, such as in some financial cryptographic settings, this
-/// library also supports a `--features=batch_deterministic` setting, where the
-/// nonces for batch signature verification are derived purely from the inputs
-/// to this function themselves.
-///
-/// **This is not recommended for use unless you have several cryptographers on
-///   staff who can advise you in its usage and all the horrible, terrible,
-///   awful ways it can go horribly, terribly, awfully wrong.**
-///
-/// In any sigma protocol it is wise to include as much context pertaining
-/// to the public state in the protocol as possible, to avoid malleability
-/// attacks where an adversary alters publics in an algebraic manner that
-/// manages to satisfy the equations for the protocol in question.
-///
-/// For ed25519 batch verification (both with synthetic and deterministic nonce
-/// generation), we include the following as scalars in the protocol transcript:
-///
-/// * All of the computed `H(R||A||M)`s to the protocol transcript, and
-/// * All of the `s` components of each signature.
-///
-/// Each is also prefixed with their index in the vector.
-///
-/// The former, while not quite as elegant as adding the `R`s, `A`s, and
-/// `M`s separately, saves us a bit of context hashing since the
-/// `H(R||A||M)`s need to be computed for the verification equation anyway.
-///
-/// The latter prevents a malleability attack only found in deterministic batch
-/// signature verification (i.e. only when compiling `ed25519-dalek` with
-/// `--features batch_deterministic`) wherein an adversary, without access
-/// to the signing key(s), can take any valid signature, `(s,R)`, and swap
-/// `s` with `s' = -z1`.  This doesn't contitute a signature forgery, merely
-/// a vulnerability, as the resulting signature will not pass single
-/// signature verification.  (Thanks to Github users @real_or_random and
-/// @jonasnick for pointing out this malleability issue.)
-///
-/// For an additional way in which signatures can be made to probablistically
-/// falsely "pass" the synthethic batch verification equation *for the same
-/// inputs*, but *only some crafted inputs* will pass the deterministic batch
-/// single, and neither of these will ever pass single signature verification,
-/// see the documentation for [`PublicKey.validate()`].
+///   occurred.
 ///
 /// # Examples
 ///
@@ -224,6 +234,113 @@ pub fn verify_batch(
     public_keys: &[PublicKey],
 ) -> Result<(), SignatureError>
 {
+    // Convert all signatures to `InternalSignature`
+    let internal_sigs = signatures
+        .iter()
+        .map(InternalSignature::try_from)
+        .collect::<Result<Vec<_>, _>>()?;
+
+    // Setup working memory
+    let mut hrams: Vec<Scalar> = messages
+        .iter()
+        .map(|_| Scalar::zero() )
+        .collect();
+    
+    let mut zs: Vec<Scalar> = messages
+        .iter()
+        .map(|_| Scalar::zero() )
+        .collect();
+
+    // Call internal batch verify
+    verify_batch_internal(messages, &internal_sigs, public_keys, &mut hrams, &mut zs, messages.len())
+}
+
+
+/// Verify a batch of up to `MAX_SIGS` `signatures` on `messages` with their respective `public_keys` using [`heapless`] stack allocations.
+/// 
+/// Available with `batch` and `heapless` features. See [`verify_batch`] (available with `std` or `alloc` features) for handling larger number of messages.
+/// 
+/// See the [module level docs](crate::batch) for notes on Synthetic and Deterministic nonces relevant to batch implementations.
+///
+/// # Inputs
+///
+/// * `messages` is a slice of byte slices, one per signed message.
+/// * `signatures` is a slice of `Signature`s.
+/// * `public_keys` is a slice of `PublicKey`s.
+///
+/// # Returns
+///
+/// * A `Result` whose `Ok` value is an emtpy tuple and whose `Err` value is a
+///   `SignatureError` containing a description of the internal error which
+///   occured.
+///
+/// # Examples
+///
+/// ```
+/// extern crate ed25519_dalek;
+/// extern crate rand;
+///
+/// use ed25519_dalek::verify_batch_n;
+/// use ed25519_dalek::Keypair;
+/// use ed25519_dalek::PublicKey;
+/// use ed25519_dalek::Signer;
+/// use ed25519_dalek::Signature;
+/// use rand::rngs::OsRng;
+/// use array_macro::array;
+///
+/// # fn main() {
+/// let mut csprng = OsRng{};
+/// let keypairs = array!(_ => Keypair::generate(&mut csprng); 64);
+/// let msg: &[u8] = b"They're good dogs Brant";
+/// let messages = [msg; 64];
+/// let signatures = array!(i => keypairs[i].sign(&msg); 64);
+/// let public_keys = array!(i => keypairs[i].public; 64);
+///
+/// let result = verify_batch_n::<64>(&messages, &signatures, &public_keys, 64);
+/// assert!(result.is_ok());
+/// # }
+/// ```
+#[cfg(all(any(feature = "batch", feature = "batch_deterministic"), feature = "heapless"))]
+#[allow(non_snake_case)]
+pub fn verify_batch_n<const MAX_SIGS: usize>(
+    messages: &[&[u8]],
+    signatures: &[ed25519::Signature],
+    public_keys: &[PublicKey],
+    count: usize,
+) -> Result<(), SignatureError> {
+
+    // Convert signatures to internal form
+    let internal_sigs: heapless::Vec<InternalSignature, MAX_SIGS> = signatures
+        .iter()
+        .map(InternalSignature::try_from)
+        .collect::<Result<heapless::Vec<_, MAX_SIGS>, _>>()?;
+
+    // Setup working memory
+    let mut hrams: heapless::Vec<Scalar, MAX_SIGS> = (0..count)
+        .map(|_| Scalar::zero() )
+        .collect();
+    
+    let mut zs: heapless::Vec<Scalar, MAX_SIGS> = (0..count)
+        .map(|_| Scalar::zero() )
+        .collect();
+
+    // Call internal batch verify
+    verify_batch_internal(messages, &internal_sigs, public_keys, &mut hrams, &mut zs, count)
+}
+
+/// Internal batch verification implementation, operates over pre-allocated storage to avoid duplication
+#[allow(non_snake_case)]
+fn verify_batch_internal(
+    messages: &[&[u8]],
+    signatures: &[InternalSignature],
+    public_keys: &[PublicKey],
+
+    hrams: &mut [Scalar],
+    zs: &mut [Scalar],
+
+    count: usize,
+) -> Result<(), SignatureError>
+{
     // Return an Error if any of the vectors were not the same size as the others.
     if signatures.len() != messages.len() ||
         signatures.len() != public_keys.len() ||
@@ -235,25 +352,16 @@ pub fn verify_batch(
         }.into());
     }
 
-    // Convert all signatures to `InternalSignature`
-    let signatures = signatures
-        .iter()
-        .map(InternalSignature::try_from)
-        .collect::<Result<Vec<_>, _>>()?;
-
     // Compute H(R || A || M) for each (signature, public_key, message) triplet
-    let hrams: Vec<Scalar> = (0..signatures.len()).map(|i| {
+    for i in 0..count {
         let mut h: Sha512 = Sha512::default();
+
         h.update(signatures[i].R.as_bytes());
         h.update(public_keys[i].as_bytes());
         h.update(&messages[i]);
-        Scalar::from_hash(h)
-    }).collect();
 
-    // Collect the message lengths and the scalar portions of the signatures,
-    // and add them into the transcript.
-    let message_lengths: Vec<usize> = messages.iter().map(|i| i.len()).collect();
-    let scalars: Vec<Scalar> = signatures.iter().map(|i| i.s).collect();
+        hrams[i] = Scalar::from_hash(h);
+    }
 
     // Build a PRNG based on a transcript of the H(R || A || M)s seen thus far.
     // This provides synthethic randomness in the default configuration, and
@@ -262,8 +370,22 @@ pub fn verify_batch(
     let mut transcript: Transcript = Transcript::new(b"ed25519 batch verification");
 
     transcript.append_scalars(&hrams);
-    transcript.append_message_lengths(&message_lengths);
-    transcript.append_scalars(&scalars);
+
+    // ['Transcript::append_message_lengths'] without allocating
+    for i in 0..count {
+        let len = messages[i].len();
+
+        transcript.append_u64(b"", i as u64);
+        transcript.append_u64(b"mlen", len as u64);
+    }
+
+    // [`Transcript::append_scalars`] without allocating
+    for i in 0..count {
+        let scalar = signatures[i].s;
+
+        transcript.append_u64(b"", i as u64);
+        transcript.append_message(b"hram", scalar.as_bytes());
+    }
 
     #[cfg(all(feature = "batch", not(feature = "batch_deterministic")))]
     let mut prng = transcript.build_rng().finalize(&mut thread_rng());
@@ -271,13 +393,12 @@ pub fn verify_batch(
     let mut prng = transcript.build_rng().finalize(&mut zero_rng());
 
     // Select a random 128-bit scalar for each signature.
-    let zs: Vec<Scalar> = signatures
-        .iter()
-        .map(|_| Scalar::from(prng.gen::<u128>()))
-        .collect();
+    for i in 0..count {
+        zs[i] = Scalar::from(prng.gen::<u128>());
+    }
 
-    // Compute the basepoint coefficient, ∑ s[i]z[i] (mod l)
-    let B_coefficient: Scalar = signatures
+   // Compute the basepoint coefficient, ∑ s[i]z[i] (mod l)
+   let B_coefficient: Scalar = signatures
         .iter()
         .map(|sig| sig.s)
         .zip(zs.iter())
