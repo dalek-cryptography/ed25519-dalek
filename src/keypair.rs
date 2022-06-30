@@ -35,12 +35,35 @@ use crate::secret::*;
 #[derive(Debug)]
 pub struct Keypair {
     /// The secret half of this keypair.
-    pub secret: SecretKey,
+    pub(crate) secret: SecretKey,
     /// The public half of this keypair.
-    pub public: PublicKey,
+    pub(crate) public: PublicKey,
+}
+
+impl From<SecretKey> for Keypair {
+    fn from(secret: SecretKey) -> Self {
+        let public = PublicKey::from(&secret);
+        Self { secret, public }
+    }
 }
 
 impl Keypair {
+    /// Public getter for the secret key of this keypair.
+    ///
+    /// # Returns
+    /// The secret key.
+    pub fn secret_key(&self) -> SecretKey {
+        SecretKey(self.secret.0)
+    }
+
+    /// Public getter for the public key of this keypair.
+    ///
+    /// # Returns
+    /// The public key.
+    pub fn public_key(&self) -> PublicKey {
+        self.public
+    }
+
     /// Convert this keypair to bytes.
     ///
     /// # Returns
@@ -303,7 +326,7 @@ impl Keypair {
     /// let mut prehashed_again: Sha512 = Sha512::default();
     /// prehashed_again.update(message);
     ///
-    /// let verified = keypair.public.verify_prehashed(prehashed_again, Some(context), &sig);
+    /// let verified = keypair.public_key().verify_prehashed(prehashed_again, Some(context), &sig);
     ///
     /// assert!(verified.is_ok());
     ///

@@ -29,7 +29,6 @@ use sha2::Sha512;
 #[cfg(test)]
 mod vectors {
     use curve25519_dalek::{edwards::EdwardsPoint, scalar::Scalar};
-    use ed25519::signature::Signature as _;
     use sha2::{digest::Digest, Sha512};
     use std::convert::TryFrom;
 
@@ -69,8 +68,10 @@ mod vectors {
             let sig_bytes: Vec<u8> = FromHex::from_hex(&parts[3]).unwrap();
 
             let secret: SecretKey = SecretKey::from_bytes(&sec_bytes[..SECRET_KEY_LENGTH]).unwrap();
-            let public: PublicKey = PublicKey::from_bytes(&pub_bytes[..PUBLIC_KEY_LENGTH]).unwrap();
-            let keypair: Keypair  = Keypair{ secret: secret, public: public };
+            let expected_public: PublicKey =
+                PublicKey::from_bytes(&pub_bytes[..PUBLIC_KEY_LENGTH]).unwrap();
+            let keypair: Keypair = Keypair::from(secret);
+            assert_eq!(expected_public, keypair.public_key());
 
 		    // The signatures in the test vectors also include the message
 		    // at the end, but we just want R and S.
@@ -97,8 +98,10 @@ mod vectors {
         let sig_bytes: Vec<u8> = FromHex::from_hex(signature).unwrap();
 
         let secret: SecretKey = SecretKey::from_bytes(&sec_bytes[..SECRET_KEY_LENGTH]).unwrap();
-        let public: PublicKey = PublicKey::from_bytes(&pub_bytes[..PUBLIC_KEY_LENGTH]).unwrap();
-        let keypair: Keypair  = Keypair{ secret: secret, public: public };
+        let expected_public: PublicKey =
+            PublicKey::from_bytes(&pub_bytes[..PUBLIC_KEY_LENGTH]).unwrap();
+        let keypair: Keypair = Keypair::from(secret);
+        assert_eq!(expected_public, keypair.public_key());
         let sig1: Signature = Signature::from_bytes(&sig_bytes[..]).unwrap();
 
         let mut prehash_for_signing: Sha512 = Sha512::default();
