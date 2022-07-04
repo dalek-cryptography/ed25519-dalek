@@ -70,7 +70,7 @@ mod vectors {
 
             let secret: SecretKey = SecretKey::from_bytes(&sec_bytes[..SECRET_KEY_LENGTH]).unwrap();
             let public: PublicKey = PublicKey::from_bytes(&pub_bytes[..PUBLIC_KEY_LENGTH]).unwrap();
-            let keypair: Keypair  = Keypair{ secret: secret, public: public };
+            let keypair: Keypair  = Keypair::from((secret, public));
 
 		    // The signatures in the test vectors also include the message
 		    // at the end, but we just want R and S.
@@ -98,7 +98,7 @@ mod vectors {
 
         let secret: SecretKey = SecretKey::from_bytes(&sec_bytes[..SECRET_KEY_LENGTH]).unwrap();
         let public: PublicKey = PublicKey::from_bytes(&pub_bytes[..PUBLIC_KEY_LENGTH]).unwrap();
-        let keypair: Keypair  = Keypair{ secret: secret, public: public };
+        let keypair: Keypair  = Keypair::from((secret, public ));
         let sig1: Signature = Signature::from_bytes(&sig_bytes[..]).unwrap();
 
         let mut prehash_for_signing: Sha512 = Sha512::default();
@@ -177,7 +177,7 @@ mod vectors {
         }
 
         let signature = serialize_signature(&r, &s);
-        let pk = PublicKey::from_bytes(&pub_key.compress().as_bytes()[..]).unwrap();
+        let pk = <PublicKey>::from_bytes(&pub_key.compress().as_bytes()[..]).unwrap();
         let sig = Signature::try_from(&signature[..]).unwrap();
         // The same signature verifies for both messages
         assert!(pk.verify(message1, &sig).is_ok() && pk.verify(message2, &sig).is_ok());
@@ -403,7 +403,7 @@ mod serialisation {
 
     #[test]
     fn serialize_deserialize_expanded_secret_key_bincode() {
-        let expanded_secret_key = ExpandedSecretKey::from(&SecretKey::from_bytes(&SECRET_KEY_BYTES).unwrap());
+        let expanded_secret_key: ExpandedSecretKey = ExpandedSecretKey::from(&SecretKey::from_bytes(&SECRET_KEY_BYTES).unwrap());
         let encoded_expanded_secret_key: Vec<u8> = bincode::serialize(&expanded_secret_key).unwrap();
         let decoded_expanded_secret_key: ExpandedSecretKey = bincode::deserialize(&encoded_expanded_secret_key).unwrap();
 
@@ -414,7 +414,7 @@ mod serialisation {
 
     #[test]
     fn serialize_deserialize_expanded_secret_key_json() {
-        let expanded_secret_key = ExpandedSecretKey::from(&SecretKey::from_bytes(&SECRET_KEY_BYTES).unwrap());
+        let expanded_secret_key = <ExpandedSecretKey>::from(&SecretKey::from_bytes(&SECRET_KEY_BYTES).unwrap());
         let encoded_expanded_secret_key = serde_json::to_string(&expanded_secret_key).unwrap();
         let decoded_expanded_secret_key: ExpandedSecretKey = serde_json::from_str(&encoded_expanded_secret_key).unwrap();
 
@@ -476,7 +476,7 @@ mod serialisation {
 
     #[test]
     fn serialize_expanded_secret_key_size() {
-        let expanded_secret_key = ExpandedSecretKey::from(&SecretKey::from_bytes(&SECRET_KEY_BYTES).unwrap());
+        let expanded_secret_key: ExpandedSecretKey = ExpandedSecretKey::from(&SecretKey::from_bytes(&SECRET_KEY_BYTES).unwrap());
         assert_eq!(bincode::serialized_size(&expanded_secret_key).unwrap() as usize, BINCODE_INT_LENGTH + EXPANDED_SECRET_KEY_LENGTH);
     }
 

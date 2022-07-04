@@ -10,6 +10,7 @@
 //! ed25519 secret key types.
 
 use core::fmt::Debug;
+use core::marker::PhantomData;
 
 use curve25519_dalek::constants;
 use curve25519_dalek::digest::generic_array::typenum::U64;
@@ -35,32 +36,36 @@ use crate::constants::*;
 use crate::errors::*;
 use crate::public::*;
 use crate::signature::*;
+use crate::Digest512;
 
 /// An EdDSA secret key.
 ///
 /// Instances of this secret are automatically overwritten with zeroes when they
 /// fall out of scope.
-pub struct SecretKey(pub(crate) [u8; SECRET_KEY_LENGTH]);
+pub struct SecretKey<DIGEST: Digest512 = Sha512>(
+    pub(crate) [u8; SECRET_KEY_LENGTH],
+    PhantomData<DIGEST>,
+);
 
-impl Drop for SecretKey {
+impl <DIGEST: Digest512> Drop for SecretKey<DIGEST> {
     fn drop(&mut self) {
         self.0.zeroize()
     }
 }
 
-impl Debug for SecretKey {
+impl <DIGEST: Digest512> Debug for SecretKey<DIGEST> {
     fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-        write!(f, "SecretKey: {:?}", &self.0[..])
+        write!(f, "SecretKey: {:?} ({})", &self.0[..], core::any::type_name::<DIGEST>())
     }
 }
 
-impl AsRef<[u8]> for SecretKey {
+impl <DIGEST: Digest512> AsRef<[u8]> for SecretKey<DIGEST> {
     fn as_ref(&self) -> &[u8] {
         self.as_bytes()
     }
 }
 
-impl SecretKey {
+impl <DIGEST: Digest512> SecretKey<DIGEST> {
     /// Convert this secret key to a byte array.
     #[inline]
     pub fn to_bytes(&self) -> [u8; SECRET_KEY_LENGTH] {
@@ -107,7 +112,7 @@ impl SecretKey {
     /// A `Result` whose okay value is an EdDSA `SecretKey` or whose error value
     /// is an `SignatureError` wrapping the internal error that occurred.
     #[inline]
-    pub fn from_bytes(bytes: &[u8]) -> Result<SecretKey, SignatureError> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, SignatureError> {
         if bytes.len() != SECRET_KEY_LENGTH {
             return Err(InternalError::BytesLengthError {
                 name: "SecretKey",
@@ -117,7 +122,7 @@ impl SecretKey {
         let mut bits: [u8; 32] = [0u8; 32];
         bits.copy_from_slice(&bytes[..32]);
 
-        Ok(SecretKey(bits))
+        Ok(Self(bits, PhantomData))
     }
 
     /// Generate a `SecretKey` from a `csprng`.
@@ -168,11 +173,11 @@ impl SecretKey {
     ///
     /// A CSPRNG with a `fill_bytes()` method, e.g. `rand::OsRng`
     #[cfg(feature = "rand")]
-    pub fn generate<T>(csprng: &mut T) -> SecretKey
+    pub fn generate<T>(csprng: &mut T) -> Self
     where
         T: CryptoRng + RngCore,
     {
-        let mut sk: SecretKey = SecretKey([0u8; 32]);
+        let mut sk: Self = Self([0u8; 32], PhantomData);
 
         csprng.fill_bytes(&mut sk.0);
 
@@ -239,19 +244,20 @@ impl<'d> Deserialize<'d> for SecretKey {
 // same signature scheme, and which both fail in exactly the same way.  For a
 // better-designed, Schnorr-based signature scheme, see Trevor Perrin's work on
 // "generalised EdDSA" and "VXEdDSA".
-pub struct ExpandedSecretKey {
+pub struct ExpandedSecretKey<DIGEST: Digest512 = Sha512> {
     pub(crate) key: Scalar,
     pub(crate) nonce: [u8; 32],
+    _d: PhantomData<DIGEST>,
 }
 
-impl Drop for ExpandedSecretKey {
+impl <DIGEST: Digest512> Drop for ExpandedSecretKey<DIGEST> {
     fn drop(&mut self) {
         self.key.zeroize();
         self.nonce.zeroize()
     }
 }
 
-impl<'a> From<&'a SecretKey> for ExpandedSecretKey {
+impl<'a, DIGEST: Digest512> From<&'a SecretKey<DIGEST>> for ExpandedSecretKey<DIGEST> {
     /// Construct an `ExpandedSecretKey` from a `SecretKey`.
     ///
     /// # Examples
@@ -271,8 +277,8 @@ impl<'a> From<&'a SecretKey> for ExpandedSecretKey {
     /// let expanded_secret_key: ExpandedSecretKey = ExpandedSecretKey::from(&secret_key);
     /// # }
     /// ```
-    fn from(secret_key: &'a SecretKey) -> ExpandedSecretKey {
-        let mut h: Sha512 = Sha512::default();
+    fn from(secret_key: &'a SecretKey<DIGEST>) -> Self {
+        let mut h: DIGEST = DIGEST::new();
         let mut hash:  [u8; 64] = [0u8; 64];
         let mut lower: [u8; 32] = [0u8; 32];
         let mut upper: [u8; 32] = [0u8; 32];
@@ -287,11 +293,11 @@ impl<'a> From<&'a SecretKey> for ExpandedSecretKey {
         lower[31] &=  63;
         lower[31] |=  64;
 
-        ExpandedSecretKey{ key: Scalar::from_bits(lower), nonce: upper, }
+        ExpandedSecretKey{ key: Scalar::from_bits(lower), nonce: upper, _d: PhantomData }
     }
 }
 
-impl ExpandedSecretKey {
+impl <DIGEST: Digest512> ExpandedSecretKey<DIGEST> {
     /// Convert this `ExpandedSecretKey` into an array of 64 bytes.
     ///
     /// # Returns
@@ -375,7 +381,7 @@ impl ExpandedSecretKey {
     /// # fn main() { }
     /// ```
     #[inline]
-    pub fn from_bytes(bytes: &[u8]) -> Result<ExpandedSecretKey, SignatureError> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, SignatureError> {
         if bytes.len() != EXPANDED_SECRET_KEY_LENGTH {
             return Err(InternalError::BytesLengthError {
                 name: "ExpandedSecretKey",
@@ -388,29 +394,17 @@ impl ExpandedSecretKey {
         lower.copy_from_slice(&bytes[00..32]);
         upper.copy_from_slice(&bytes[32..64]);
 
-        Ok(ExpandedSecretKey {
+        Ok(Self {
             key: Scalar::from_bits(lower),
             nonce: upper,
+            _d: PhantomData,
         })
     }
 
     /// Sign a message with this `ExpandedSecretKey`.
     #[allow(non_snake_case)]
     pub fn sign(&self, message: &[u8], public_key: &PublicKey) -> ed25519::Signature {
-        self.sign_digest_internal::<Sha512>(message, public_key)
-    }
-
-    /// Sign a message with this `ExpandedSecretKey` using the provided digest.
-    #[cfg(feature = "yolo_crypto")]
-    #[allow(non_snake_case)]
-    pub fn sign_digest<D: Digest<OutputSize=U64>>(&self, message: &[u8], public_key: &PublicKey) -> ed25519::Signature {
-        self.sign_digest_internal::<D>(message, public_key)
-    }
-
-    /// Internal method to sign a message with this `ExpandedSecretKey` generic over digest type.
-    #[allow(non_snake_case)]
-    fn sign_digest_internal<D: Digest<OutputSize=U64>>(&self, message: &[u8], public_key: &PublicKey) -> ed25519::Signature {
-        let mut h: D = D::new();
+        let mut h: DIGEST = DIGEST::new();
         let R: CompressedEdwardsY;
         let r: Scalar;
         let s: Scalar;
@@ -422,7 +416,7 @@ impl ExpandedSecretKey {
         r = Scalar::from_hash(h);
         R = (&r * &constants::ED25519_BASEPOINT_TABLE).compress();
 
-        h = D::new();
+        h = DIGEST::new();
         h.update(R.as_bytes());
         h.update(public_key.as_bytes());
         h.update(&message);
@@ -457,13 +451,13 @@ impl ExpandedSecretKey {
     pub fn sign_prehashed<'a, D>(
         &self,
         prehashed_message: D,
-        public_key: &PublicKey,
+        public_key: &PublicKey<DIGEST>,
         context: Option<&'a [u8]>,
     ) -> Result<ed25519::Signature, SignatureError>
     where
         D: Digest<OutputSize = U64>,
     {
-        let mut h: Sha512;
+        let mut h: DIGEST;
         let mut prehash: [u8; 64] = [0u8; 64];
         let R: CompressedEdwardsY;
         let r: Scalar;
@@ -493,7 +487,7 @@ impl ExpandedSecretKey {
         //
         // This is a really fucking stupid bandaid, and the damned scheme is
         // still bleeding from malleability, for fuck's sake.
-        h = Sha512::new()
+        h = DIGEST::new()
             .chain(b"SigEd25519 no Ed25519 collisions")
             .chain(&[1]) // Ed25519ph
             .chain(&[ctx_len])
@@ -504,7 +498,7 @@ impl ExpandedSecretKey {
         r = Scalar::from_hash(h);
         R = (&r * &constants::ED25519_BASEPOINT_TABLE).compress();
 
-        h = Sha512::new()
+        h = DIGEST::new()
             .chain(b"SigEd25519 no Ed25519 collisions")
             .chain(&[1]) // Ed25519ph
             .chain(&[ctx_len])
@@ -521,7 +515,7 @@ impl ExpandedSecretKey {
 }
 
 #[cfg(feature = "serde")]
-impl Serialize for ExpandedSecretKey {
+impl <DIGEST: Digest512> Serialize for ExpandedSecretKey<DIGEST> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -532,13 +526,13 @@ impl Serialize for ExpandedSecretKey {
 }
 
 #[cfg(feature = "serde")]
-impl<'d> Deserialize<'d> for ExpandedSecretKey {
+impl<'d, DIGEST: Digest512> Deserialize<'d> for ExpandedSecretKey<DIGEST> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'d>,
     {
         let bytes = <SerdeByteBuf>::deserialize(deserializer)?;
-        ExpandedSecretKey::from_bytes(bytes.as_ref()).map_err(SerdeError::custom)
+        Self::from_bytes(bytes.as_ref()).map_err(SerdeError::custom)
     }
 }
 
@@ -551,7 +545,7 @@ mod test {
         let secret_ptr: *const u8;
 
         { // scope for the secret to ensure it's been dropped
-            let secret = SecretKey::from_bytes(&[0x15u8; 32][..]).unwrap();
+            let secret = SecretKey::<Sha512>::from_bytes(&[0x15u8; 32][..]).unwrap();
 
             secret_ptr = secret.0.as_ptr();
         }

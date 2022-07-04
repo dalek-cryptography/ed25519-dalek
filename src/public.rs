@@ -11,6 +11,7 @@
 
 use core::convert::TryFrom;
 use core::fmt::Debug;
+use core::marker::PhantomData;
 
 use curve25519_dalek::constants;
 use curve25519_dalek::digest::generic_array::typenum::U64;
@@ -34,41 +35,61 @@ use crate::constants::*;
 use crate::errors::*;
 use crate::secret::*;
 use crate::signature::*;
+use crate::Digest512;
+
 
 /// An ed25519 public key.
-#[derive(Copy, Clone, Default, Eq, PartialEq)]
-pub struct PublicKey(pub(crate) CompressedEdwardsY, pub(crate) EdwardsPoint);
+#[derive(Default, Eq)]
+pub struct PublicKey<DIGEST: Digest512 = Sha512>(
+    pub(crate) CompressedEdwardsY, 
+    pub(crate) EdwardsPoint,
+    PhantomData<DIGEST>,
+);
 
-impl Debug for PublicKey {
+impl <DIGEST: Digest512> Debug for PublicKey<DIGEST> {
     fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-        write!(f, "PublicKey({:?}), {:?})", self.0, self.1)
+        write!(f, "PublicKey({:?}), {:?}, {})", self.0, self.1, core::any::type_name::<DIGEST>())
     }
 }
 
-impl AsRef<[u8]> for PublicKey {
+impl <DIGEST: Digest512> AsRef<[u8]> for PublicKey<DIGEST> {
     fn as_ref(&self) -> &[u8] {
         self.as_bytes()
     }
 }
 
-impl<'a> From<&'a SecretKey> for PublicKey {
-    /// Derive this public key from its corresponding `SecretKey`.
-    fn from(secret_key: &SecretKey) -> PublicKey {
-        Self::from_secret_digest_internal::<Sha512>(secret_key)
+impl <DIGEST: Digest512> Clone for PublicKey<DIGEST> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone(), self.1.clone(), PhantomData)
     }
 }
 
-impl PublicKey {
+impl <DIGEST: Digest512> Copy for PublicKey<DIGEST> { }
+
+impl <DIGEST: Digest512> PartialEq for PublicKey<DIGEST> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0 && self.1 == other.1
+    }
+}
+
+impl<'a, DIGEST: Digest512> From<&'a SecretKey<DIGEST>> for PublicKey<DIGEST> {
+    /// Derive this public key from its corresponding `SecretKey`.
+    fn from(secret_key: &SecretKey<DIGEST>) -> Self {
+        Self::from_secret_digest_internal(secret_key)
+    }
+}
+
+impl <DIGEST: Digest512> PublicKey<DIGEST> {
     /// Derive this public key from its corresponding `SecretKey` using
     /// the specified hasher
     #[cfg(feature = "yolo_crypto")]
-    pub fn from_secret_digest<D: Digest<OutputSize = U64>>(secret_key: &SecretKey) -> PublicKey {
-        Self::from_secret_digest_internal::<D>(secret_key)
+    pub fn from_secret_digest(secret_key: &SecretKey<DIGEST>) -> Self {
+        Self::from_secret_digest_internal(secret_key)
     }
 
     /// Internal key derivation function, generic over digest type
-    fn from_secret_digest_internal<D: Digest<OutputSize = U64>>(secret_key: &SecretKey) -> PublicKey {
-        let mut h: D = D::new();
+    fn from_secret_digest_internal(secret_key: &SecretKey<DIGEST>) -> Self {
+        let mut h: DIGEST = DIGEST::new();
         let mut hash: [u8; 64] = [0u8; 64];
         let mut digest: [u8; 32] = [0u8; 32];
 
@@ -77,20 +98,20 @@ impl PublicKey {
 
         digest.copy_from_slice(&hash[..32]);
 
-        PublicKey::mangle_scalar_bits_and_multiply_by_basepoint_to_produce_public_key(&mut digest)
+        Self::mangle_scalar_bits_and_multiply_by_basepoint_to_produce_public_key(&mut digest)
     }
 }
 
-impl<'a> From<&'a ExpandedSecretKey> for PublicKey {
+impl<'a, DIGEST: Digest512> From<&'a ExpandedSecretKey> for PublicKey<DIGEST> {
     /// Derive this public key from its corresponding `ExpandedSecretKey`.
-    fn from(expanded_secret_key: &ExpandedSecretKey) -> PublicKey {
+    fn from(expanded_secret_key: &ExpandedSecretKey) -> Self {
         let mut bits: [u8; 32] = expanded_secret_key.key.to_bytes();
 
         PublicKey::mangle_scalar_bits_and_multiply_by_basepoint_to_produce_public_key(&mut bits)
     }
 }
 
-impl PublicKey {
+impl <DIGEST: Digest512> PublicKey<DIGEST> {
     /// Convert this public key to a byte array.
     #[inline]
     pub fn to_bytes(&self) -> [u8; PUBLIC_KEY_LENGTH] {
@@ -140,7 +161,7 @@ impl PublicKey {
     /// A `Result` whose okay value is an EdDSA `PublicKey` or whose error value
     /// is an `SignatureError` describing the error that occurred.
     #[inline]
-    pub fn from_bytes(bytes: &[u8]) -> Result<PublicKey, SignatureError> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, SignatureError> {
         if bytes.len() != PUBLIC_KEY_LENGTH {
             return Err(InternalError::BytesLengthError {
                 name: "PublicKey",
@@ -155,7 +176,7 @@ impl PublicKey {
             .decompress()
             .ok_or(InternalError::PointDecompressionError)?;
 
-        Ok(PublicKey(compressed, point))
+        Ok(PublicKey(compressed, point, PhantomData))
     }
 
     /// Internal utility function for mangling the bits of a (formerly
@@ -163,7 +184,7 @@ impl PublicKey {
     /// public key.
     fn mangle_scalar_bits_and_multiply_by_basepoint_to_produce_public_key(
         bits: &mut [u8; 32],
-    ) -> PublicKey {
+    ) -> Self {
         bits[0] &= 248;
         bits[31] &= 127;
         bits[31] |= 64;
@@ -171,7 +192,7 @@ impl PublicKey {
         let point = &Scalar::from_bits(*bits) * &constants::ED25519_BASEPOINT_TABLE;
         let compressed = point.compress();
 
-        PublicKey(compressed, point)
+        PublicKey(compressed, point, PhantomData)
     }
 
     /// Verify a `signature` on a `prehashed_message` using the Ed25519ph algorithm.
@@ -204,7 +225,7 @@ impl PublicKey {
     {
         let signature = InternalSignature::try_from(signature)?;
 
-        let mut h: Sha512 = Sha512::default();
+        let mut h: DIGEST = DIGEST::new();
         let R: EdwardsPoint;
         let k: Scalar;
 
@@ -332,25 +353,25 @@ impl PublicKey {
         }
     }
 
-    /// Verify a signature on a message with this keypair's public key and the specified hasher.
+    /// Verify a signature on a message with this keypair's public key and the digest
     ///
     /// # Return
     ///
     /// Returns `Ok(())` if the signature is valid, and `Err` otherwise.
     #[cfg(feature = "yolo_crypto")]
     #[allow(non_snake_case)]
-    pub fn verify_digest<D: Digest<OutputSize=U64>>(
+    pub fn verify_digest(
         &self,
         message: &[u8],
         signature: &ed25519::Signature
     ) -> Result<(), SignatureError>
     {
-        self.verify_digest_internal::<D>(message, signature)
+        self.verify_digest_internal(message, signature)
     }
 
-    /// Internal verify method, generic over digest type
+    /// Internal verify method, using DIGEST type binding
     #[allow(non_snake_case)]
-    fn verify_digest_internal<D: Digest<OutputSize=U64>>(
+    fn verify_digest_internal(
         &self,
         message: &[u8],
         signature: &ed25519::Signature
@@ -358,7 +379,7 @@ impl PublicKey {
     {
         let signature = InternalSignature::try_from(signature)?;
 
-        let mut h: D = D::new();
+        let mut h: DIGEST = DIGEST::new();
         let R: EdwardsPoint;
         let k: Scalar;
         let minus_A: EdwardsPoint = -self.1;
@@ -378,7 +399,7 @@ impl PublicKey {
     }    
 }
 
-impl Verifier<ed25519::Signature> for PublicKey {
+impl <DIGEST: Digest512> Verifier<ed25519::Signature> for PublicKey<DIGEST> {
     /// Verify a signature on a message with this keypair's public key.
     ///
     /// # Return
@@ -391,12 +412,12 @@ impl Verifier<ed25519::Signature> for PublicKey {
         signature: &ed25519::Signature
     ) -> Result<(), SignatureError>
     {
-        self.verify_digest_internal::<Sha512>(message, signature)
+        self.verify_digest_internal(message, signature)
     }
 }
 
 #[cfg(feature = "serde")]
-impl Serialize for PublicKey {
+impl <DIGEST: Digest512> Serialize for PublicKey<DIGEST> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -406,12 +427,12 @@ impl Serialize for PublicKey {
 }
 
 #[cfg(feature = "serde")]
-impl<'d> Deserialize<'d> for PublicKey {
+impl<'d, DIGEST: Digest512> Deserialize<'d> for PublicKey<DIGEST> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'d>,
     {
         let bytes = <SerdeByteBuf>::deserialize(deserializer)?;
-        PublicKey::from_bytes(bytes.as_ref()).map_err(SerdeError::custom)
+        Self::from_bytes(bytes.as_ref()).map_err(SerdeError::custom)
     }
 }

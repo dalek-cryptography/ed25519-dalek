@@ -9,6 +9,8 @@
 
 //! ed25519 keypairs.
 
+use core::marker::PhantomData;
+
 #[cfg(feature = "rand")]
 use rand::{CryptoRng, RngCore};
 
@@ -26,21 +28,33 @@ pub use curve25519_dalek::digest::Digest;
 
 use ed25519::signature::{Signer, Verifier};
 
-use crate::constants::*;
+use crate::{constants::*, Digest512};
 use crate::errors::*;
 use crate::public::*;
 use crate::secret::*;
 
 /// An ed25519 keypair.
 #[derive(Debug)]
-pub struct Keypair {
+pub struct Keypair<DIGEST: Digest512 = Sha512> {
     /// The secret half of this keypair.
-    pub secret: SecretKey,
+    pub secret: SecretKey<DIGEST>,
     /// The public half of this keypair.
-    pub public: PublicKey,
+    pub public: PublicKey<DIGEST>,
+
+    /// Internal digest type
+    _d: PhantomData<DIGEST>,
 }
 
-impl Keypair {
+/// Construct a keypair from secret and public halves
+/// 
+/// NOTE: breaks public construction... required due to PhantomData<DIGEST> binding on `Keypair` object
+impl <DIGEST: Digest512> From<(SecretKey<DIGEST>, PublicKey<DIGEST>)> for Keypair<DIGEST> {
+    fn from((secret, public): (SecretKey<DIGEST>, PublicKey<DIGEST>)) -> Self {
+        Self{ secret, public, _d: PhantomData }
+    }
+}
+
+impl <DIGEST: Digest512> Keypair<DIGEST> {
     /// Convert this keypair to bytes.
     ///
     /// # Returns
@@ -77,7 +91,7 @@ impl Keypair {
     ///
     /// A `Result` whose okay value is an EdDSA `Keypair` or whose error value
     /// is an `SignatureError` describing the error that occurred.
-    pub fn from_bytes<'a>(bytes: &'a [u8]) -> Result<Keypair, SignatureError> {
+    pub fn from_bytes<'a>(bytes: &'a [u8]) -> Result<Self, SignatureError> {
         if bytes.len() != KEYPAIR_LENGTH {
             return Err(InternalError::BytesLengthError {
                 name: "Keypair",
@@ -87,7 +101,7 @@ impl Keypair {
         let secret = SecretKey::from_bytes(&bytes[..SECRET_KEY_LENGTH])?;
         let public = PublicKey::from_bytes(&bytes[SECRET_KEY_LENGTH..])?;
 
-        Ok(Keypair{ secret: secret, public: public })
+        Ok(Self{ secret: secret, public: public, _d: PhantomData })
     }
 
     /// Generate an ed25519 keypair.
@@ -124,14 +138,14 @@ impl Keypair {
     /// which is available with `use sha2::Sha512` as in the example above.
     /// Other suitable hash functions include Keccak-512 and Blake2b-512.
     #[cfg(feature = "rand")]
-    pub fn generate<R>(csprng: &mut R) -> Keypair
+    pub fn generate<R>(csprng: &mut R) -> Self
     where
         R: CryptoRng + RngCore,
     {
-        let sk: SecretKey = SecretKey::generate(csprng);
-        let pk: PublicKey = (&sk).into();
+        let sk: SecretKey<DIGEST> = SecretKey::generate(csprng);
+        let pk: PublicKey<DIGEST> = (&sk).into();
 
-        Keypair{ public: pk, secret: sk }
+        Self{ public: pk, secret: sk, _d: PhantomData }
     }
 
     /// Sign a `prehashed_message` with this `Keypair` using the
@@ -242,7 +256,7 @@ impl Keypair {
     where
         D: Digest<OutputSize = U64>,
     {
-        let expanded: ExpandedSecretKey = (&self.secret).into(); // xxx thanks i hate this
+        let expanded: ExpandedSecretKey<DIGEST> = (&self.secret).into(); // xxx thanks i hate this
 
         expanded.sign_prehashed(prehashed_message, &self.public, context).into()
     }

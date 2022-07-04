@@ -265,6 +265,7 @@ mod secret;
 mod signature;
 
 pub use curve25519_dalek::digest::Digest;
+use curve25519_dalek::digest::generic_array::typenum::U64;
 
 #[cfg(all(any(feature = "batch", feature = "batch_deterministic"), any(feature = "std", feature = "alloc")))]
 pub use crate::batch::*;
@@ -277,3 +278,11 @@ pub use crate::secret::*;
 // Re-export the `Signer` and `Verifier` traits from the `signature` crate
 pub use ed25519::signature::{Signer, Verifier};
 pub use ed25519::Signature;
+
+
+
+/// Helper trait for digests with 512 bit outputs
+pub trait Digest512: curve25519_dalek::digest::Digest<OutputSize = U64> {}
+
+/// Implemented on all `Digest512<OutputSize = U64>` types
+impl <T: curve25519_dalek::digest::Digest<OutputSize = U64>> Digest512 for T {}
