@@ -277,3 +277,13 @@ pub use crate::secret::*;
 // Re-export the `Signer` and `Verifier` traits from the `signature` crate
 pub use ed25519::signature::{Signer, Verifier};
 pub use ed25519::Signature;
+
+// Internal re-export [`ED25519_BASEPOINT`] using table or point depending 
+// `basepoint_tables` feature, internally this should be used in place of 
+// `_TABLE` or `_POINT`.
+
+#[cfg(feature="basepoint_tables")]
+pub(crate) use curve25519_dalek::constants::{ED25519_BASEPOINT_TABLE as ED25519_BASEPOINT};
+
+#[cfg(not(feature="basepoint_tables"))]
+pub(crate) use curve25519_dalek::constants::{ED25519_BASEPOINT_POINT as ED25519_BASEPOINT};

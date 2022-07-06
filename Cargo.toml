@@ -49,7 +49,7 @@ harness = false
 # required-features = ["batch"]
 
 [features]
-default = ["std", "rand", "u64_backend"]
+default = ["std", "rand", "u64_backend", "basepoint_tables"]
 std = ["curve25519-dalek/std", "ed25519/std", "serde_crate/std", "sha2/std", "rand/std"]
 alloc = ["curve25519-dalek/alloc", "rand/alloc", "zeroize/alloc"]
 nightly = ["curve25519-dalek/nightly"]
@@ -63,3 +63,6 @@ legacy_compatibility = []
 u64_backend = ["curve25519-dalek/u64_backend"]
 u32_backend = ["curve25519-dalek/u32_backend"]
 simd_backend = ["curve25519-dalek/simd_backend"]
+
+# Enable use of basepoint tables for accelerated operations
+basepoint_tables = ["curve25519-dalek/basepoint_tables"]
