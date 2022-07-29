@@ -40,6 +40,14 @@ pub struct Keypair {
     pub public: PublicKey,
 }
 
+impl From<SecretKey> for Keypair {
+    /// Derive this keypair from its corresponding `SecretKey`.
+    fn from(secret_key: SecretKey) -> Keypair {
+        let public_key = PublicKey::from(&secret_key);
+        Keypair { secret: secret_key, public: public_key }
+    }
+}
+
 impl Keypair {
     /// Convert this keypair to bytes.
     ///
