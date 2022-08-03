@@ -89,13 +89,6 @@ impl Keypair {
     ///   compressed Edwards-Y coordinate of a point on curve25519, both as bytes.
     ///   (As obtained from `Keypair::to_bytes()`.)
     ///
-    /// # Warning
-    ///
-    /// Absolutely no validation is done on the key.  If you give this function
-    /// bytes which do not represent a valid point, or which do not represent
-    /// corresponding parts of the key, then your `Keypair` will be broken and
-    /// it will be your fault.
-    ///
     /// # Returns
     ///
     /// A `Result` whose okay value is an EdDSA `Keypair` or whose error value
@@ -105,12 +98,17 @@ impl Keypair {
             return Err(InternalError::BytesLengthError {
                 name: "Keypair",
                 length: KEYPAIR_LENGTH,
-            }.into());
+            }
+            .into());
         }
         let secret = SecretKey::from_bytes(&bytes[..SECRET_KEY_LENGTH])?;
         let public = PublicKey::from_bytes(&bytes[SECRET_KEY_LENGTH..])?;
 
-        Ok(Keypair{ secret: secret, public: public })
+        if public != (&secret).into() {
+            return Err(InternalError::MismatchedKeypairError.into());
+        }
+
+        Ok(Keypair { secret, public })
     }
 
     /// Generate an ed25519 keypair.
