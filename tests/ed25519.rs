@@ -186,6 +186,76 @@ mod vectors {
             pk.verify_strict(message1, &sig).is_err() || pk.verify_strict(message2, &sig).is_err()
         );
     }
+
+    fn compute_hram_prehashed(message: &[u8], context: Option<&[u8]>, pub_key: &EdwardsPoint, signature_r: &EdwardsPoint) -> Scalar {
+        let ctx: &[u8] = context.unwrap_or(b"");
+        let k_bytes = Sha512::default()
+            .chain(b"SigEd25519 no Ed25519 collisions")
+            .chain(&[1])
+            .chain(&[ctx.len() as u8])
+            .chain(ctx)
+            .chain(&signature_r.compress().as_bytes())
+            .chain(&pub_key.compress().as_bytes()[..])
+            .chain(&message);
+        let mut k_output = [0u8; 64];
+        k_output.copy_from_slice(k_bytes.finalize().as_slice());
+        Scalar::from_bytes_mod_order_wide(&k_output)
+    }
+
+    #[test]
+    fn repudiation_prehash() {
+        use curve25519_dalek::traits::IsIdentity;
+        use std::ops::Neg;
+
+        let message1 = b"Send 100 USD to Alice";
+        let message2 = b"Send 100000 USD to Alice";
+        let mut message1_hash = Sha512::new();
+        let mut message2_hash = Sha512::new();
+        message1_hash.update(&message1);
+        message2_hash.update(&message2);
+
+        // Pick a random Scalar
+        fn non_null_scalar() -> Scalar {
+            let mut rng = rand::rngs::OsRng;
+            let mut s_candidate = Scalar::random(&mut rng);
+            while s_candidate == Scalar::zero() {
+                s_candidate = Scalar::random(&mut rng);
+            }
+            s_candidate
+        }
+        let mut s: Scalar = non_null_scalar();
+
+        fn pick_r_and_pubkey(s: Scalar) -> (EdwardsPoint, EdwardsPoint) {
+            let r0 = s * curve25519_dalek::constants::ED25519_BASEPOINT_POINT;
+            // Pick a torsion point of order 2
+            let pub_key = curve25519_dalek::edwards::CompressedEdwardsY(EIGHT_TORSION_4)
+                .decompress()
+                .unwrap();
+            let r = r0 + pub_key.neg();
+            (r, pub_key)
+        }
+
+        let (mut r, mut pub_key) = pick_r_and_pubkey(s);
+
+        while !(pub_key.neg() + compute_hram_prehashed(message1, Some(b"edtest"), &pub_key, &r) * pub_key).is_identity()
+            || !(pub_key.neg() + compute_hram_prehashed(message2, Some(b"edtest"), &pub_key, &r) * pub_key).is_identity()
+        {
+            s = non_null_scalar();
+            let key = pick_r_and_pubkey(s);
+            r = key.0;
+            pub_key = key.1;
+        }
+
+        let signature = serialize_signature(&r, &s);
+        let pk = PublicKey::from_bytes(&pub_key.compress().as_bytes()[..]).unwrap();
+        let sig = Signature::try_from(&signature[..]).unwrap();
+        // The same signature verifies for both messages
+        assert!(pk.verify_prehashed(message1_hash.clone(), Some(b"edtest"), &sig).is_ok() && pk.verify_prehashed(message2_hash.clone(), Some(b"edtest"), &sig).is_ok());
+        // But not with a strict signature: verify_strict refuses small order keys
+        assert!(
+            pk.verify_prehashed_strict(message1_hash, Some(b"edtest"), &sig).is_err() || pk.verify_prehashed_strict(message2_hash, Some(b"edtest"), &sig).is_err()
+        );
+    }
 }
 
 #[cfg(test)]
