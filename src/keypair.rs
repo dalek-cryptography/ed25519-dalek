@@ -17,7 +17,7 @@ use serde::de::Error as SerdeError;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(feature = "serde")]
-use serde_bytes::{Bytes as SerdeBytes, ByteBuf as SerdeByteBuf};
+use serde_bytes::{ByteBuf as SerdeByteBuf, Bytes as SerdeBytes};
 
 pub use sha2::Sha512;
 
@@ -32,6 +32,8 @@ use crate::public::*;
 use crate::secret::*;
 
 /// An ed25519 keypair.
+// Invariant: `public` is always the public key of `secret`. This prevents the signing function
+// oracle attack described in https://github.com/MystenLabs/ed25519-unsafe-libs
 #[derive(Debug)]
 pub struct Keypair {
     /// The secret half of this keypair.
@@ -48,18 +50,12 @@ impl From<SecretKey> for Keypair {
 }
 
 impl Keypair {
-    /// Public getter for the secret key of this keypair.
-    ///
-    /// # Returns
-    /// The secret key.
+    /// Get the secret key of this keypair.
     pub fn secret_key(&self) -> SecretKey {
         SecretKey(self.secret.0)
     }
 
-    /// Public getter for the public key of this keypair.
-    ///
-    /// # Returns
-    /// The public key.
+    /// Get the public key of this keypair.
     pub fn public_key(&self) -> PublicKey {
         self.public
     }
@@ -72,7 +68,8 @@ impl Keypair {
     /// `SECRET_KEY_LENGTH` of bytes is the `SecretKey`, and the next
     /// `PUBLIC_KEY_LENGTH` bytes is the `PublicKey` (the same as other
     /// libraries, such as [Adam Langley's ed25519 Golang
-    /// implementation](https://github.com/agl/ed25519/)).
+    /// implementation](https://github.com/agl/ed25519/)). It is guaranteed that
+    /// the encoded public key is the one derived from the encoded secret key.
     pub fn to_bytes(&self) -> [u8; KEYPAIR_LENGTH] {
         let mut bytes: [u8; KEYPAIR_LENGTH] = [0u8; KEYPAIR_LENGTH];
 
@@ -85,15 +82,16 @@ impl Keypair {
     ///
     /// # Inputs
     ///
-    /// * `bytes`: an `&[u8]` representing the scalar for the secret key, and a
-    ///   compressed Edwards-Y coordinate of a point on curve25519, both as bytes.
-    ///   (As obtained from `Keypair::to_bytes()`.)
+    /// * `bytes`: an `&[u8]` of length [`KEYPAIR_LENGTH`], representing the
+    ///   scalar for the secret key, and a compressed Edwards-Y coordinate of a
+    ///   point on curve25519, both as bytes. (As obtained from
+    ///   [`Keypair::to_bytes`].)
     ///
     /// # Returns
     ///
     /// A `Result` whose okay value is an EdDSA `Keypair` or whose error value
     /// is an `SignatureError` describing the error that occurred.
-    pub fn from_bytes<'a>(bytes: &'a [u8]) -> Result<Keypair, SignatureError> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Keypair, SignatureError> {
         if bytes.len() != KEYPAIR_LENGTH {
             return Err(InternalError::BytesLengthError {
                 name: "Keypair",
@@ -152,7 +150,10 @@ impl Keypair {
         let sk: SecretKey = SecretKey::generate(csprng);
         let pk: PublicKey = (&sk).into();
 
-        Keypair{ public: pk, secret: sk }
+        Keypair {
+            public: pk,
+            secret: sk,
+        }
     }
 
     /// Sign a `prehashed_message` with this `Keypair` using the
@@ -265,16 +266,17 @@ impl Keypair {
     {
         let expanded: ExpandedSecretKey = (&self.secret).into(); // xxx thanks i hate this
 
-        expanded.sign_prehashed(prehashed_message, &self.public, context).into()
+        expanded
+            .sign_prehashed(prehashed_message, &self.public, context)
+            .into()
     }
 
     /// Verify a signature on a message with this keypair's public key.
     pub fn verify(
         &self,
         message: &[u8],
-        signature: &ed25519::Signature
-    ) -> Result<(), SignatureError>
-    {
+        signature: &ed25519::Signature,
+    ) -> Result<(), SignatureError> {
         self.public.verify(message, signature)
     }
 
@@ -350,7 +352,8 @@ impl Keypair {
     where
         D: Digest<OutputSize = U64>,
     {
-        self.public.verify_prehashed(prehashed_message, context, signature)
+        self.public
+            .verify_prehashed(prehashed_message, context, signature)
     }
 
     /// Strictly verify a signature on a message with this keypair's public key.
@@ -420,8 +423,7 @@ impl Keypair {
         &self,
         message: &[u8],
         signature: &ed25519::Signature,
-    ) -> Result<(), SignatureError>
-    {
+    ) -> Result<(), SignatureError> {
         self.public.verify_strict(message, signature)
     }
 }
