@@ -181,7 +181,7 @@
 //! # let keypair: Keypair = Keypair::generate(&mut csprng);
 //! # let message: &[u8] = b"This is a test of the tsunami alert system.";
 //! # let signature: Signature = keypair.sign(message);
-//! # let public_key: PublicKey = keypair.public;
+//! # let public_key: PublicKey = keypair.public_key();
 //! # let verified: bool = public_key.verify(message, &signature).is_ok();
 //!
 //! let encoded_public_key: Vec<u8> = serialize(&public_key).unwrap();
@@ -213,7 +213,7 @@
 //! # let keypair: Keypair = Keypair::generate(&mut csprng);
 //! let message: &[u8] = b"This is a test of the tsunami alert system.";
 //! # let signature: Signature = keypair.sign(message);
-//! # let public_key: PublicKey = keypair.public;
+//! # let public_key: PublicKey = keypair.public_key();
 //! # let verified: bool = public_key.verify(message, &signature).is_ok();
 //! # let encoded_public_key: Vec<u8> = serialize(&public_key).unwrap();
 //! # let encoded_signature: Vec<u8> = serialize(&signature).unwrap();
