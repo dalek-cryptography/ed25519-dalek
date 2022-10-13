@@ -283,17 +283,6 @@ mod integrations {
 
         assert!(result.is_ok());
     }
-
-    #[test]
-    fn pubkey_from_secret_and_expanded_secret() {
-        let mut csprng = OsRng{};
-        let secret: SecretKey = SecretKey::generate(&mut csprng);
-        let expanded_secret: ExpandedSecretKey = (&secret).into();
-        let public_from_secret: PublicKey = (&secret).into(); // XXX eww
-        let public_from_expanded_secret: PublicKey = (&expanded_secret).into(); // XXX eww
-
-        assert!(public_from_secret == public_from_expanded_secret);
-    }
 }
 
 #[serde(crate = "serde_crate")]

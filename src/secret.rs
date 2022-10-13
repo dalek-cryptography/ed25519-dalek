@@ -375,12 +375,13 @@ impl ExpandedSecretKey {
     /// # fn main() { }
     /// ```
     #[inline]
-    pub fn from_bytes(bytes: &[u8]) -> Result<ExpandedSecretKey, SignatureError> {
+    pub(crate) fn from_bytes(bytes: &[u8]) -> Result<ExpandedSecretKey, SignatureError> {
         if bytes.len() != EXPANDED_SECRET_KEY_LENGTH {
             return Err(InternalError::BytesLengthError {
                 name: "ExpandedSecretKey",
                 length: EXPANDED_SECRET_KEY_LENGTH,
-            }.into());
+            }
+            .into());
         }
         let mut lower: [u8; 32] = [0u8; 32];
         let mut upper: [u8; 32] = [0u8; 32];
@@ -546,5 +547,16 @@ mod test {
         let memory: &[u8] = unsafe { ::std::slice::from_raw_parts(secret_ptr, 32) };
 
         assert!(!memory.contains(&0x15));
+    }
+
+    #[test]
+    fn pubkey_from_secret_and_expanded_secret() {
+        let mut csprng = rand::rngs::OsRng {};
+        let secret: SecretKey = SecretKey::generate(&mut csprng);
+        let expanded_secret: ExpandedSecretKey = (&secret).into();
+        let public_from_secret: PublicKey = (&secret).into(); // XXX eww
+        let public_from_expanded_secret: PublicKey = (&expanded_secret).into(); // XXX eww
+
+        assert!(public_from_secret == public_from_expanded_secret);
     }
 }
