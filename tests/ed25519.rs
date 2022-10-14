@@ -394,28 +394,6 @@ mod serialisation {
     }
 
     #[test]
-    fn serialize_deserialize_expanded_secret_key_bincode() {
-        let expanded_secret_key = ExpandedSecretKey::from(&SecretKey::from_bytes(&SECRET_KEY_BYTES).unwrap());
-        let encoded_expanded_secret_key: Vec<u8> = bincode::serialize(&expanded_secret_key).unwrap();
-        let decoded_expanded_secret_key: ExpandedSecretKey = bincode::deserialize(&encoded_expanded_secret_key).unwrap();
-
-        for i in 0..EXPANDED_SECRET_KEY_LENGTH {
-            assert_eq!(expanded_secret_key.to_bytes()[i], decoded_expanded_secret_key.to_bytes()[i]);
-        }
-    }
-
-    #[test]
-    fn serialize_deserialize_expanded_secret_key_json() {
-        let expanded_secret_key = ExpandedSecretKey::from(&SecretKey::from_bytes(&SECRET_KEY_BYTES).unwrap());
-        let encoded_expanded_secret_key = serde_json::to_string(&expanded_secret_key).unwrap();
-        let decoded_expanded_secret_key: ExpandedSecretKey = serde_json::from_str(&encoded_expanded_secret_key).unwrap();
-
-        for i in 0..EXPANDED_SECRET_KEY_LENGTH {
-            assert_eq!(expanded_secret_key.to_bytes()[i], decoded_expanded_secret_key.to_bytes()[i]);
-        }
-    }
-
-    #[test]
     fn serialize_deserialize_keypair_bincode() {
         let keypair = Keypair::from_bytes(&KEYPAIR_BYTES).unwrap();
         let encoded_keypair: Vec<u8> = bincode::serialize(&keypair).unwrap();
@@ -463,13 +441,10 @@ mod serialisation {
     #[test]
     fn serialize_secret_key_size() {
         let secret_key: SecretKey = SecretKey::from_bytes(&SECRET_KEY_BYTES).unwrap();
-        assert_eq!(bincode::serialized_size(&secret_key).unwrap() as usize, BINCODE_INT_LENGTH + SECRET_KEY_LENGTH);
-    }
-
-    #[test]
-    fn serialize_expanded_secret_key_size() {
-        let expanded_secret_key = ExpandedSecretKey::from(&SecretKey::from_bytes(&SECRET_KEY_BYTES).unwrap());
-        assert_eq!(bincode::serialized_size(&expanded_secret_key).unwrap() as usize, BINCODE_INT_LENGTH + EXPANDED_SECRET_KEY_LENGTH);
+        assert_eq!(
+            bincode::serialized_size(&secret_key).unwrap() as usize,
+            BINCODE_INT_LENGTH + SECRET_KEY_LENGTH
+        );
     }
 
     #[test]

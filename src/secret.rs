@@ -508,28 +508,6 @@ impl ExpandedSecretKey {
     }
 }
 
-#[cfg(feature = "serde")]
-impl Serialize for ExpandedSecretKey {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let bytes = &self.to_bytes()[..];
-        SerdeBytes::new(bytes).serialize(serializer)
-    }
-}
-
-#[cfg(feature = "serde")]
-impl<'d> Deserialize<'d> for ExpandedSecretKey {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'d>,
-    {
-        let bytes = <SerdeByteBuf>::deserialize(deserializer)?;
-        ExpandedSecretKey::from_bytes(bytes.as_ref()).map_err(SerdeError::custom)
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
