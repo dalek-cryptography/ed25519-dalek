@@ -128,4 +128,4 @@ jobs:
       with:
         command: bench
         # This filter selects no benchmarks, so we don't run any, only build them.
-        args: --features "batch" "DONTRUNBENCHMARKS"
+        args: --features "batch" "nonexistentbenchmark"
