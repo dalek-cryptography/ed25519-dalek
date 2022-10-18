@@ -124,8 +124,14 @@ jobs:
         profile: minimal
         toolchain: stable
         override: true
+    # Bench with and without the `batch` feature
     - uses: actions-rs/cargo@v1
       with:
         command: bench
         # This filter selects no benchmarks, so we don't run any, only build them.
         args: --features "batch" "nonexistentbenchmark"
+    - uses: actions-rs/cargo@v1
+      with:
+        command: bench
+        # This filter selects no benchmarks, so we don't run any, only build them.
+        args: "nonexistentbenchmark"
