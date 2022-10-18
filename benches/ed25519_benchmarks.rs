@@ -16,11 +16,7 @@ use criterion::Criterion;
 
 mod ed25519_benches {
     use super::*;
-    use ed25519_dalek::verify_batch;
-    use ed25519_dalek::Keypair;
-    use ed25519_dalek::PublicKey;
-    use ed25519_dalek::Signature;
-    use ed25519_dalek::Signer;
+    use ed25519_dalek::{Keypair, Signature, Signer};
     use rand::prelude::ThreadRng;
     use rand::thread_rng;
 
@@ -54,7 +50,13 @@ mod ed25519_benches {
         });
     }
 
+    #[cfg(all(
+        any(feature = "batch", feature = "batch_deterministic"),
+        any(feature = "alloc", feature = "std")
+    ))]
     fn verify_batch_signatures(c: &mut Criterion) {
+        use ed25519_dalek::{verify_batch, PublicKey};
+
         static BATCH_SIZES: [usize; 8] = [4, 8, 16, 32, 64, 96, 128, 256];
 
         c.bench_function_over_inputs(
@@ -75,6 +77,13 @@ mod ed25519_benches {
             &BATCH_SIZES,
         );
     }
+
+    // If the above function isn't defined, make a placeholder function
+    #[cfg(any(
+        not(any(feature = "batch", feature = "batch_deterministic")),
+        not(any(feature = "alloc", feature = "std"))
+    ))]
+    fn verify_batch_signatures(_: &mut Criterion) {}
 
     fn key_generation(c: &mut Criterion) {
         let mut csprng: ThreadRng = thread_rng();
