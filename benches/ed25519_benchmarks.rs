@@ -7,15 +7,8 @@
 // Authors:
 // - isis agora lovecruft <isis@patternsinthevoid.net>
 
-#[macro_use]
-extern crate criterion;
-extern crate ed25519_dalek;
-extern crate rand;
-
-use criterion::Criterion;
-
 mod ed25519_benches {
-    use super::*;
+    use criterion::{criterion_group, Criterion};
     use ed25519_dalek::{Keypair, Signature, Signer};
     use rand::prelude::ThreadRng;
     use rand::thread_rng;
@@ -56,9 +49,11 @@ mod ed25519_benches {
 
         static BATCH_SIZES: [usize; 8] = [4, 8, 16, 32, 64, 96, 128, 256];
 
-        c.bench_function_over_inputs(
-            "Ed25519 batch signature verification",
-            |b, &&size| {
+        // Benchmark batch verification for all the above batch sizes
+        let mut group = c.benchmark_group("Ed25519 batch signature verification");
+        for size in BATCH_SIZES {
+            let name = format!("size={size}");
+            group.bench_function(name, |b| {
                 let mut csprng: ThreadRng = thread_rng();
                 let keypairs: Vec<Keypair> =
                     (0..size).map(|_| Keypair::generate(&mut csprng)).collect();
@@ -70,9 +65,8 @@ mod ed25519_benches {
                     keypairs.iter().map(|key| key.public_key()).collect();
 
                 b.iter(|| verify_batch(&messages[..], &signatures[..], &public_keys[..]));
-            },
-            &BATCH_SIZES,
-        );
+            });
+        }
     }
 
     // If the above function isn't defined, make a placeholder function
@@ -99,4 +93,4 @@ mod ed25519_benches {
     }
 }
 
-criterion_main!(ed25519_benches::ed25519_benches);
+criterion::criterion_main!(ed25519_benches::ed25519_benches);
