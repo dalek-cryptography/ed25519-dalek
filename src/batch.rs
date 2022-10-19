@@ -9,8 +9,9 @@
 
 //! Batch signature verification.
 
-#[cfg(feature = "alloc")]
-extern crate alloc;
+#[cfg(all(feature = "batch", feature = "batch_deterministic"))]
+compile_error!("Cannot pick both `batch` and `batch_deterministic` features. Pick one.");
+
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 #[cfg(all(not(feature = "alloc"), feature = "std"))]
@@ -30,10 +31,7 @@ pub use curve25519_dalek::digest::Digest;
 use merlin::Transcript;
 
 use rand::Rng;
-#[cfg(all(feature = "batch", not(feature = "batch_deterministic")))]
-use rand::thread_rng;
-#[cfg(all(not(feature = "batch"), feature = "batch_deterministic"))]
-use rand_core;
+use rand_core::{CryptoRng, RngCore};
 
 use sha2::Sha512;
 
@@ -41,6 +39,19 @@ use crate::errors::InternalError;
 use crate::errors::SignatureError;
 use crate::public::PublicKey;
 use crate::signature::InternalSignature;
+
+/// Gets an RNG from the system, or the zero RNG if we're in deterministic mode. If available, we
+/// prefer `thread_rng`, since it's faster than `OsRng`.
+fn get_rng() -> impl RngCore + CryptoRng {
+    #[cfg(feature = "batch_deterministic")]
+    return ZeroRng;
+
+    #[cfg(all(feature = "batch", feature = "std"))]
+    return rand::thread_rng();
+
+    #[cfg(all(feature = "batch", not(feature = "std")))]
+    return rand::rngs::OsRng;
+}
 
 trait BatchTranscript {
     fn append_scalars(&mut self, scalars: &Vec<Scalar>);
@@ -65,10 +76,9 @@ impl BatchTranscript for Transcript {
 
     /// Append the lengths of the messages into the transcript.
     ///
-    /// This is done out of an (potential over-)abundance of caution, to guard
-    /// against the unlikely event of collisions.  However, a nicer way to do
-    /// this would be to append the message length before the message, but this
-    /// is messy w.r.t. the calculations of the `H(R||A||M)`s above.
+    /// This is done out of an (potential over-)abundance of caution, to guard against the unlikely
+    /// event of collisions.  However, a nicer way to do this would be to append the message length
+    /// before the message, but this is messy w.r.t. the calculations of the `H(R||A||M)`s above.
     fn append_message_lengths(&mut self, message_lengths: &Vec<usize>) {
         for (i, len) in message_lengths.iter().enumerate() {
             self.append_u64(b"", i as u64);
@@ -77,14 +87,13 @@ impl BatchTranscript for Transcript {
     }
 }
 
-/// An implementation of `rand_core::RngCore` which does nothing, to provide
-/// purely deterministic transcript-based nonces, rather than synthetically
-/// random nonces.
-#[cfg(all(not(feature = "batch"), feature = "batch_deterministic"))]
-struct ZeroRng {}
+/// An implementation of `rand_core::RngCore` which does nothing, to provide purely deterministic
+/// transcript-based nonces, rather than synthetically random nonces.
+#[cfg(feature = "batch_deterministic")]
+struct ZeroRng;
 
-#[cfg(all(not(feature = "batch"), feature = "batch_deterministic"))]
-impl rand_core::RngCore for ZeroRng {
+#[cfg(feature = "batch_deterministic")]
+impl RngCore for ZeroRng {
     fn next_u32(&mut self) -> u32 {
         rand_core::impls::next_u32_via_fill(self)
     }
@@ -95,13 +104,12 @@ impl rand_core::RngCore for ZeroRng {
 
     /// A no-op function which leaves the destination bytes for randomness unchanged.
     ///
-    /// In this case, the internal merlin code is initialising the destination
-    /// by doing `[0u8; …]`, which means that when we call
-    /// `merlin::TranscriptRngBuilder.finalize()`, rather than rekeying the
-    /// STROBE state based on external randomness, we're doing an
-    /// `ENC_{state}(00000000000000000000000000000000)` operation, which is
-    /// identical to the STROBE `MAC` operation.
-    fn fill_bytes(&mut self, _dest: &mut [u8]) { }
+    /// In this case, the internal merlin code is initialising the destination by doing `[0u8; …]`,
+    /// which means that when we call `merlin::TranscriptRngBuilder.finalize()`, rather than
+    /// rekeying the STROBE state based on external randomness, we're doing an
+    /// `ENC_{state}(00000000000000000000000000000000)` operation, which is identical to the STROBE
+    /// `MAC` operation.
+    fn fill_bytes(&mut self, _dest: &mut [u8]) {}
 
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
         self.fill_bytes(dest);
@@ -109,13 +117,8 @@ impl rand_core::RngCore for ZeroRng {
     }
 }
 
-#[cfg(all(not(feature = "batch"), feature = "batch_deterministic"))]
-impl rand_core::CryptoRng for ZeroRng {}
-
-#[cfg(all(not(feature = "batch"), feature = "batch_deterministic"))]
-fn zero_rng() -> ZeroRng {
-    ZeroRng {}
-}
+#[cfg(feature = "batch_deterministic")]
+impl CryptoRng for ZeroRng {}
 
 /// Verify a batch of `signatures` on `messages` with their respective `public_keys`.
 ///
@@ -204,7 +207,7 @@ fn zero_rng() -> ZeroRng {
 /// use rand::rngs::OsRng;
 ///
 /// # fn main() {
-/// let mut csprng = OsRng{};
+/// let mut csprng = OsRng;
 /// let keypairs: Vec<Keypair> = (0..64).map(|_| Keypair::generate(&mut csprng)).collect();
 /// let msg: &[u8] = b"They're good dogs Brant";
 /// let messages: Vec<&[u8]> = (0..64).map(|_| msg).collect();
@@ -215,24 +218,26 @@ fn zero_rng() -> ZeroRng {
 /// assert!(result.is_ok());
 /// # }
 /// ```
-#[cfg(all(any(feature = "batch", feature = "batch_deterministic"),
-          any(feature = "alloc", feature = "std")))]
 #[allow(non_snake_case)]
 pub fn verify_batch(
     messages: &[&[u8]],
     signatures: &[ed25519::Signature],
     public_keys: &[PublicKey],
-) -> Result<(), SignatureError>
-{
+) -> Result<(), SignatureError> {
     // Return an Error if any of the vectors were not the same size as the others.
-    if signatures.len() != messages.len() ||
-        signatures.len() != public_keys.len() ||
-        public_keys.len() != messages.len() {
-        return Err(InternalError::ArrayLengthError{
-            name_a: "signatures", length_a: signatures.len(),
-            name_b: "messages", length_b: messages.len(),
-            name_c: "public_keys", length_c: public_keys.len(),
-        }.into());
+    if signatures.len() != messages.len()
+        || signatures.len() != public_keys.len()
+        || public_keys.len() != messages.len()
+    {
+        return Err(InternalError::ArrayLengthError {
+            name_a: "signatures",
+            length_a: signatures.len(),
+            name_b: "messages",
+            length_b: messages.len(),
+            name_c: "public_keys",
+            length_c: public_keys.len(),
+        }
+        .into());
     }
 
     // Convert all signatures to `InternalSignature`
@@ -242,33 +247,31 @@ pub fn verify_batch(
         .collect::<Result<Vec<_>, _>>()?;
 
     // Compute H(R || A || M) for each (signature, public_key, message) triplet
-    let hrams: Vec<Scalar> = (0..signatures.len()).map(|i| {
-        let mut h: Sha512 = Sha512::default();
-        h.update(signatures[i].R.as_bytes());
-        h.update(public_keys[i].as_bytes());
-        h.update(&messages[i]);
-        Scalar::from_hash(h)
-    }).collect();
+    let hrams: Vec<Scalar> = (0..signatures.len())
+        .map(|i| {
+            let mut h: Sha512 = Sha512::default();
+            h.update(signatures[i].R.as_bytes());
+            h.update(public_keys[i].as_bytes());
+            h.update(&messages[i]);
+            Scalar::from_hash(h)
+        })
+        .collect();
 
-    // Collect the message lengths and the scalar portions of the signatures,
-    // and add them into the transcript.
+    // Collect the message lengths and the scalar portions of the signatures, and add them into the
+    // transcript.
     let message_lengths: Vec<usize> = messages.iter().map(|i| i.len()).collect();
     let scalars: Vec<Scalar> = signatures.iter().map(|i| i.s).collect();
 
-    // Build a PRNG based on a transcript of the H(R || A || M)s seen thus far.
-    // This provides synthethic randomness in the default configuration, and
-    // purely deterministic in the case of compiling with the
-    // "batch_deterministic" feature.
+    // Build a PRNG based on a transcript of the H(R || A || M)s seen thus far. This provides
+    // synthethic randomness in the default configuration, and purely deterministic in the case of
+    // compiling with the "batch_deterministic" feature.
     let mut transcript: Transcript = Transcript::new(b"ed25519 batch verification");
 
     transcript.append_scalars(&hrams);
     transcript.append_message_lengths(&message_lengths);
     transcript.append_scalars(&scalars);
 
-    #[cfg(all(feature = "batch", not(feature = "batch_deterministic")))]
-    let mut prng = transcript.build_rng().finalize(&mut thread_rng());
-    #[cfg(all(not(feature = "batch"), feature = "batch_deterministic"))]
-    let mut prng = transcript.build_rng().finalize(&mut zero_rng());
+    let mut prng = transcript.build_rng().finalize(&mut get_rng());
 
     // Select a random 128-bit scalar for each signature.
     let zs: Vec<Scalar> = signatures
@@ -295,7 +298,8 @@ pub fn verify_batch(
     let id = EdwardsPoint::optional_multiscalar_mul(
         once(-B_coefficient).chain(zs.iter().cloned()).chain(zhrams),
         B.chain(Rs).chain(As),
-    ).ok_or(InternalError::VerifyError)?;
+    )
+    .ok_or(InternalError::VerifyError)?;
 
     if id.is_identity() {
         Ok(())

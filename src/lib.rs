@@ -242,30 +242,23 @@ extern crate std;
 
 pub extern crate ed25519;
 
-#[cfg(all(feature = "alloc", not(feature = "std")))]
+#[cfg(feature = "alloc")]
 extern crate alloc;
-extern crate curve25519_dalek;
-#[cfg(all(any(feature = "batch", feature = "batch_deterministic"), any(feature = "std", feature = "alloc")))]
-extern crate merlin;
-#[cfg(any(feature = "batch", feature = "std", feature = "alloc", test))]
-extern crate rand;
 #[cfg(feature = "serde")]
 extern crate serde_crate as serde;
-extern crate sha2;
-extern crate zeroize;
 
-#[cfg(all(any(feature = "batch", feature = "batch_deterministic"), any(feature = "std", feature = "alloc")))]
+#[cfg(any(feature = "batch", feature = "batch_deterministic"))]
 mod batch;
 mod constants;
-mod keypair;
 mod errors;
+mod keypair;
 mod public;
 mod secret;
 mod signature;
 
 pub use curve25519_dalek::digest::Digest;
 
-#[cfg(all(any(feature = "batch", feature = "batch_deterministic"), any(feature = "std", feature = "alloc")))]
+#[cfg(any(feature = "batch", feature = "batch_deterministic"))]
 pub use crate::batch::*;
 pub use crate::constants::*;
 pub use crate::errors::*;
