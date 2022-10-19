@@ -98,7 +98,7 @@ jobs:
     - uses: actions-rs/cargo@v1
       with:
         command: test
-        args: --features "batch_deterministic"
+        args: --no-default-features --features "u64_backend batch_deterministic"
 
   msrv:
     name: Current MSRV is 1.56.1
