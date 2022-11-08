@@ -91,12 +91,6 @@ impl PublicKey {
 
     /// Construct a `PublicKey` from a slice of bytes.
     ///
-    /// # Warning
-    ///
-    /// The caller is responsible for ensuring that the bytes passed into this
-    /// method actually represent a `curve25519_dalek::curve::CompressedEdwardsY`
-    /// and that said compressed point is actually a point on the curve.
-    ///
     /// # Example
     ///
     /// ```
@@ -123,7 +117,7 @@ impl PublicKey {
     ///
     /// # Returns
     ///
-    /// A `Result` whose okay value is an EdDSA `PublicKey` or whose error value
+    /// A `Result` whose okay value is a valid EdDSA `PublicKey` or whose error value
     /// is an `SignatureError` describing the error that occurred.
     #[inline]
     pub fn from_bytes(bytes: &[u8]) -> Result<PublicKey, SignatureError> {
