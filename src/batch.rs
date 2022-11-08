@@ -235,6 +235,15 @@ pub fn verify_batch(
         }.into());
     }
 
+    // If we have been given a trivial batch size, we can exit early
+    // without going through the trouble of batch verification.
+    if signatures.len() == 0 {
+        return Ok(());
+    } else if signatures.len() == 1 {
+        use crate::ed25519::signature::Verifier;
+        return public_keys[0].verify(messages[0], &signatures[0]);
+    }
+
     // Convert all signatures to `InternalSignature`
     let signatures = signatures
         .iter()
