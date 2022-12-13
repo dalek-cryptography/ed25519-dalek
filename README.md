@@ -28,37 +28,33 @@ See [CHANGELOG.md](CHANGELOG.md) for a list of changes made in past version of t
 
 # Benchmarks
 
-On an Intel Skylake i9-7900X running at 3.30 GHz, without TurboBoost, this code achieves
-the following performance benchmarks:
+On an Intel 10700K running at stock comparing between the `curve25519-dalek` backends.
 
-    ∃!isisⒶmistakenot:(master *=)~/code/rust/ed25519-dalek ∴ cargo bench
-       Compiling ed25519-dalek v0.7.0 (file:///home/isis/code/rust/ed25519-dalek)
-        Finished release [optimized] target(s) in 3.11s
-          Running target/release/deps/ed25519_benchmarks-721332beed423bce
+**u64**: The default `serial` backend with `u64` target backend
+$ `cargo bench --features batch`
 
-    Ed25519 signing                     time:   [15.617 us 15.630 us 15.647 us]
-    Ed25519 signature verification      time:   [45.930 us 45.968 us 46.011 us]
-    Ed25519 keypair generation          time:   [15.440 us 15.465 us 15.492 us]
+**simd +avx2**: The `simd` backend with the `avx2` target backend
+$ `export RUSTFLAGS='--cfg curve25519_dalek_backend="simd" -C target_feature=+avx2'`
 
-By enabling the avx2 backend (on machines with compatible microarchitectures),
-the performance for signature verification is greatly improved:
+**fiat**: The `fiat` formally verified backend
+$ `export RUSTFLAGS='--cfg curve25519_dalek_backend="fiat"
 
-    ∃!isisⒶmistakenot:(master *=)~/code/rust/ed25519-dalek ∴ export RUSTFLAGS=-Ctarget_cpu=native
-    ∃!isisⒶmistakenot:(master *=)~/code/rust/ed25519-dalek ∴ cargo bench --features=avx2_backend
-       Compiling ed25519-dalek v0.7.0 (file:///home/isis/code/rust/ed25519-dalek)
-        Finished release [optimized] target(s) in 4.28s
-          Running target/release/deps/ed25519_benchmarks-e4866664de39c84d
-    Ed25519 signing                     time:   [15.923 us 15.945 us 15.967 us]
-    Ed25519 signature verification      time:   [33.382 us 33.411 us 33.445 us]
-    Ed25519 keypair generation          time:   [15.246 us 15.260 us 15.275 us]
+| Benchmark                       | u64       | simd +avx2         | fiat               |
+| :---                            | :----     | :---               | :---               |
+| signing                         | 15.017 µs | 13.906 µs -7.3967% | 15.877 µs +14.188% |
+| signature verification          | 40.144 µs | 25.963 µs -35.603% | 42.118 µs +62.758% |
+| strict signature verification   | 41.334 µs | 27.874 µs -32.660% | 43.985 µs +57.763% |
+| batch signature verification/4  | 109.44 µs | 81.778 µs -25.079% | 117.80 µs +43.629% |
+| batch signature verification/8  | 182.75 µs | 138.40 µs -23.871% | 195.86 µs +40.665% |
+| batch signature verification/16 | 328.67 µs | 251.39 µs -23.744% | 351.55 µs +39.901% |
+| batch signature verification/32 | 619.49 µs | 477.36 µs -23.053% | 669.41 µs +39.966% |
+| batch signature verification/64 | 1.2136 ms | 936.85 µs -22.543% | 1.3028 ms +38.808% |
+| batch signature verification/96 | 1.8677 ms | 1.2357 ms -33.936% | 2.0552 ms +66.439% |
+| batch signature verification/128| 2.3281 ms | 1.5795 ms -31.996% | 2.5596 ms +61.678% |
+| batch signature verification/256| 4.1868 ms | 2.8864 ms -31.061% | 4.6494 ms +61.081% |
+| keypair generation              | 13.973 µs | 13.108 µs -6.5062% | 15.099 µs +15.407% |
 
-In comparison, the equivalent package in Golang performs as follows:
-
-    ∃!isisⒶmistakenot:(master *=)~/code/go/src/github.com/agl/ed25519 ∴ go test -bench .
-    BenchmarkKeyGeneration     30000             47007 ns/op
-    BenchmarkSigning           30000             48820 ns/op
-    BenchmarkVerification      10000            119701 ns/op
-    ok      github.com/agl/ed25519  5.775s
+See more information about the used [curve25519-dalek backends](https//docs.rs/curve25519-dalek) to determine the right for your you.
 
 Making key generation and signing a rough average of 2x faster, and
 verification 2.5-3x faster depending on the availability of avx2.  Of course, this
@@ -81,20 +77,6 @@ aforementioned Intel Skylake i9-7900X, verifying a batch of 96 signatures takes
 more than double the speed of batch verification given in the original paper
 (this is likely not a fair comparison as that was a Nehalem machine).
 The numbers after the `/` in the test name refer to the size of the batch:
-
-    ∃!isisⒶmistakenot:(master *=)~/code/rust/ed25519-dalek ∴ export RUSTFLAGS=-Ctarget_cpu=native
-    ∃!isisⒶmistakenot:(master *=)~/code/rust/ed25519-dalek ∴ cargo bench --features=avx2_backend batch
-       Compiling ed25519-dalek v0.8.0 (file:///home/isis/code/rust/ed25519-dalek)
-        Finished release [optimized] target(s) in 34.16s
-          Running target/release/deps/ed25519_benchmarks-cf0daf7d68fc71b6
-    Ed25519 batch signature verification/4   time:   [105.20 us 106.04 us 106.99 us]
-    Ed25519 batch signature verification/8   time:   [178.66 us 179.01 us 179.39 us]
-    Ed25519 batch signature verification/16  time:   [325.65 us 326.67 us 327.90 us]
-    Ed25519 batch signature verification/32  time:   [617.96 us 620.74 us 624.12 us]
-    Ed25519 batch signature verification/64  time:   [1.1862 ms 1.1900 ms 1.1943 ms]
-    Ed25519 batch signature verification/96  time:   [1.7611 ms 1.7673 ms 1.7742 ms]
-    Ed25519 batch signature verification/128 time:   [2.3320 ms 2.3376 ms 2.3446 ms]
-    Ed25519 batch signature verification/256 time:   [5.0124 ms 5.0290 ms 5.0491 ms]
 
 As you can see, there's an optimal batch size for each machine, so you'll likely
 want to test the benchmarks on your target CPU to discover the best size.  For
@@ -175,7 +157,7 @@ prime order, but having a small cofactor of 8.
 
 If you wish to also eliminate this source of signature malleability, please
 review the
-[documentation for the `verify_strict()` function](https://doc.dalek.rs/ed25519_dalek/struct.PublicKey.html#method.verify_strict).
+[documentation for the `verify_strict()` function](https://docs.rs/ed25519-dalek/latest/ed25519_dalek/struct.PublicKey.html#method.verify_strict).
 
 # A Note on Randomness Generation
 
@@ -247,15 +229,18 @@ To enable [serde](https://serde.rs) support, build `ed25519-dalek` with the
 
 ## (Micro)Architecture Specific Backends
 
-By default, `ed25519-dalek` builds against `curve25519-dalek`'s `u64_backend`
-feature, which uses Rust's `i128` feature to achieve roughly double the speed as
-the `u32_backend` feature.  When targetting 32-bit systems, however, you'll
-likely want to compile with `cargo build --no-default-features
---features="u32_backend"`.  If you're building for a machine with avx2
-instructions, there's also the experimental `simd_backend`s, currently
-comprising either avx2 or avx512 backends.  To use them, compile with
-`RUSTFLAGS="-C target_cpu=native" cargo build --no-default-features
---features="simd_backend"`
+`ed25519-dalek` uses the backends from the `curve25519-dalek` crate.
+
+By default the serial backend is used and depending on the target
+platform either the 32 bit or the 64 bit serial formula is automatically used.
+
+To address variety of  usage scenarios various backends are available that
+include hardware optimisations as well as a formally verified fiat crypto
+backend that does not use any hardware optimisations.
+
+These backends can be overriden with various configuration predicates (cfg)
+
+Please see the [curve25519_dalek backend documentation](https://docs.rs/curve25519-dalek/latest/curve25519_dalek).
 
 ## Batch Signature Verification
 
