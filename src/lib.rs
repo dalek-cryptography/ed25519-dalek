@@ -232,6 +232,9 @@ mod signature;
 
 pub use curve25519_dalek::digest::Digest;
 
+#[cfg(all(feature = "batch", feature = "batch_deterministic"))]
+compile_error!("Features batch and batch_deterministic are mutually exclusive.");
+
 #[cfg(any(feature = "batch", feature = "batch_deterministic"))]
 pub use crate::batch::*;
 pub use crate::constants::*;
