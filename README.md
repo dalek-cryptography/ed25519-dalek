@@ -45,6 +45,9 @@ On an Intel 10700K running at stock comparing between the `curve25519-dalek` bac
 | batch signature verification/256| 4.1868 ms | 2.8864 ms -31.061% | 4.6494 ms +61.081% |
 | keypair generation              | 13.973 µs | 13.108 µs -6.5062% | 15.099 µs +15.407% |
 
+Please note that the backend over the default `serial` u32 / u64 has to be
+selected and is not automatically detected currently.
+
 See more information about the used [curve25519-dalek backends](https//docs.rs/curve25519-dalek) to determine the right for your you.
 
 Making key generation and signing a rough average of 2x faster, and
