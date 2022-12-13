@@ -24,10 +24,10 @@ pub use curve25519_dalek::digest::Digest;
 
 use merlin::Transcript;
 
-#[cfg(all(feature = "batch", not(feature = "batch_deterministic")))]
+#[cfg(not(feature = "batch_deterministic"))]
 use rand::thread_rng;
 use rand::Rng;
-#[cfg(all(not(feature = "batch"), feature = "batch_deterministic"))]
+#[cfg(feature = "batch_deterministic")]
 use rand_core;
 
 use sha2::Sha512;
@@ -75,10 +75,10 @@ impl BatchTranscript for Transcript {
 /// An implementation of `rand_core::RngCore` which does nothing, to provide
 /// purely deterministic transcript-based nonces, rather than synthetically
 /// random nonces.
-#[cfg(all(not(feature = "batch"), feature = "batch_deterministic"))]
+#[cfg(feature = "batch_deterministic")]
 struct ZeroRng {}
 
-#[cfg(all(not(feature = "batch"), feature = "batch_deterministic"))]
+#[cfg(feature = "batch_deterministic")]
 impl rand_core::RngCore for ZeroRng {
     fn next_u32(&mut self) -> u32 {
         rand_core::impls::next_u32_via_fill(self)
@@ -104,10 +104,10 @@ impl rand_core::RngCore for ZeroRng {
     }
 }
 
-#[cfg(all(not(feature = "batch"), feature = "batch_deterministic"))]
+#[cfg(feature = "batch_deterministic")]
 impl rand_core::CryptoRng for ZeroRng {}
 
-#[cfg(all(not(feature = "batch"), feature = "batch_deterministic"))]
+#[cfg(feature = "batch_deterministic")]
 fn zero_rng() -> ZeroRng {
     ZeroRng {}
 }
@@ -261,9 +261,9 @@ pub fn verify_batch(
     transcript.append_message_lengths(&message_lengths);
     transcript.append_scalars(&scalars);
 
-    #[cfg(all(feature = "batch", not(feature = "batch_deterministic")))]
+    #[cfg(not(feature = "batch_deterministic"))]
     let mut prng = transcript.build_rng().finalize(&mut thread_rng());
-    #[cfg(all(not(feature = "batch"), feature = "batch_deterministic"))]
+    #[cfg(feature = "batch_deterministic")]
     let mut prng = transcript.build_rng().finalize(&mut zero_rng());
 
     // Select a random 128-bit scalar for each signature.
