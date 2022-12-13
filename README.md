@@ -31,12 +31,15 @@ See [CHANGELOG.md](CHANGELOG.md) for a list of changes made in past version of t
 On an Intel 10700K running at stock comparing between the `curve25519-dalek` backends.
 
 **u64**: The default `serial` backend with `u64` target backend
+
 $ `cargo bench --features batch`
 
 **simd +avx2**: The `simd` backend with the `avx2` target backend
+
 $ `export RUSTFLAGS='--cfg curve25519_dalek_backend="simd" -C target_feature=+avx2'`
 
 **fiat**: The `fiat` formally verified backend
+
 $ `export RUSTFLAGS='--cfg curve25519_dalek_backend="fiat"
 
 | Benchmark                       | u64       | simd +avx2         | fiat               |
