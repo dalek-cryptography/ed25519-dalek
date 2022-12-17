@@ -634,7 +634,7 @@ impl<'d> Deserialize<'d> for SigningKey {
 // several contexts (such as within tor, which does domain separation
 // manually by pre-concatenating static strings to messages to achieve more
 // robust domain separation).  In other real-world applications, such as
-// bitcoind, a user might wish to have one master signing key from which others are
+// bitcoind, a user might wish to have one master keypair from which others are
 // derived (à la BIP32) and different domain separators between keys derived at
 // different levels (and similarly for tree-based key derivation constructions,
 // such as hash-based signatures).  Leaving the domain separation to
