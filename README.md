@@ -55,6 +55,11 @@ This crate does not require any unsafe and forbids all unsafe in-crate.
 
 # Performance
 
+Performance is a secondary goal behind correctness, safety, and clarity, but we
+aim to be competitive with other implementations.
+
+## Benchmarks
+
 Benchmarks are run using [criterion.rs](https://github.com/japaric/criterion.rs):
 
 ```sh
@@ -63,9 +68,6 @@ cargo bench --features "batch"
 export RUSTFLAGS='--cfg curve25519_dalek_backend="simd" -C target_cpu=native'
 cargo +nightly bench --features "batch"
 ```
-
-Performance is a secondary goal behind correctness, safety, and clarity, but we
-aim to be competitive with other implementations.
 
 On an Intel 10700K running at stock comparing between the `curve25519-dalek` backends.
 
@@ -84,42 +86,36 @@ On an Intel 10700K running at stock comparing between the `curve25519-dalek` bac
 | batch signature verification/256| 4.1868 ms | 2.8864 ms -31.061% | 4.6494 ms +61.081% |
 | keypair generation              | 13.973 µs | 13.108 µs -6.5062% | 15.099 µs +15.407% |
 
-Please note that the backend over the default `serial` u32 / u64 has to be
-selected and is not automatically detected currently over these.
-
-See more information about the used [curve25519-dalek backends](https//docs.rs/curve25519-dalek) to determine the right for your you.
-
-Making key generation and signing a rough average of 2x faster, and
-verification 2.5-3x faster depending on the availability of avx2.  Of course, this
-is just my machine, and these results—nowhere near rigorous—should be taken
-with a handful of salt.
-
-Translating to a rough cycle count: we multiply by a factor of 3.3 to convert
-nanoseconds to cycles per second on a 3300 Mhz CPU, that's 110256 cycles for
-verification and 52618 for signing, which is competitive with hand-optimised
-assembly implementations.
-
 Additionally, if you're using a CSPRNG from the `rand` crate, the `nightly`
 feature will enable `u128`/`i128` features there, resulting in potentially
 faster performance.
 
+## Batch Performance
+
 If your protocol or application is able to batch signatures for verification,
-the `verify_batch()` function has greatly improved performance.  On the
-aforementioned Intel Skylake i9-7900X, verifying a batch of 96 signatures takes
-1.7673ms.  That's 18.4094us, or roughly 60750 cycles, per signature verification,
-more than double the speed of batch verification given in the original paper
-(this is likely not a fair comparison as that was a Nehalem machine).
-The numbers after the `/` in the test name refer to the size of the batch:
+the `verify_batch()` function has greatly improved performance.
 
 As you can see, there's an optimal batch size for each machine, so you'll likely
-want to test the benchmarks on your target CPU to discover the best size.  For
-this machine, around 100 signatures per batch is the optimum:
+want to test the benchmarks on your target CPU to discover the best size.
 
-![](https://github.com/dalek-cryptography/ed25519-dalek/blob/master/res/batch-violin-benchmark.svg)
+## (Micro)Architecture Specific Backends
+
+`ed25519-dalek` uses the backends from the `curve25519-dalek` crate.
+
+By default the serial backend is used and depending on the target
+platform either the 32 bit or the 64 bit serial formula is automatically used.
+
+To address variety of  usage scenarios various backends are available that
+include hardware optimisations as well as a formally verified fiat crypto
+backend that does not use any hardware optimisations.
+
+These backends can be overriden with various configuration predicates (cfg)
+
+Please see the [curve25519_dalek backend documentation](https://docs.rs/curve25519-dalek/latest/curve25519_dalek).
 
 # Contributing
 
-See [CONTRIBUTING.md]
+See [CONTRIBUTING.md](CONTRIBUTING.md)
 
 # A Note on Signature Malleability
 
@@ -224,21 +220,6 @@ randomness.  This provides _synthetic randomness_, that is, randomness based on
 both deterministic and undeterinistic data.  The reason for doing this is to
 prevent badly seeded system RNGs from ruining the security of the signature
 verification scheme.
-
-## (Micro)Architecture Specific Backends
-
-`ed25519-dalek` uses the backends from the `curve25519-dalek` crate.
-
-By default the serial backend is used and depending on the target
-platform either the 32 bit or the 64 bit serial formula is automatically used.
-
-To address variety of  usage scenarios various backends are available that
-include hardware optimisations as well as a formally verified fiat crypto
-backend that does not use any hardware optimisations.
-
-These backends can be overriden with various configuration predicates (cfg)
-
-Please see the [curve25519_dalek backend documentation](https://docs.rs/curve25519-dalek/latest/curve25519_dalek).
 
 ## Batch Signature Verification
 
