@@ -3,30 +3,69 @@
 Fast and efficient Rust implementation of ed25519 key generation, signing, and
 verification in Rust.
 
-# Documentation
+# Use
 
-Documentation is available [here](https://docs.rs/ed25519-dalek).
-
-# Installation
-
-To install, add the following to your project's `Cargo.toml`:
+To use, add the following to your project's `Cargo.toml`:
 
 ```toml
 [dependencies.ed25519-dalek]
 version = "1"
 ```
 
-# Minimum Supported Rust Version
+# Feature Flags
 
-This crate requires Rust 1.56.1 at a minimum. 1.x releases of this crate supported an MSRV of 1.41.
+This crate is `#[no_std]` compatible with `default-features = false`
 
-In the future, MSRV changes will be accompanied by a minor version bump.
+| Feature                | Default? | Description |
+| :---                   | :---     | :---        |
+| `std`                  | ✓        | TODO        |
+| `rand`                 | ✓        | TODO        |
+| `alloc                 |          | TODO        |
+| `batch`                |          | TODO        |
+| `batch_deterministic`  |          | TODO        |
+| `asm`                  |          | Assembly implementation of SHA-2 compression functions |
+| `legacy_compatibility` |          | See: A Note on Signature Malleability |
 
-# Changelog
+# Major Changes
 
 See [CHANGELOG.md](CHANGELOG.md) for a list of changes made in past version of this crate.
 
-# Benchmarks
+## 2.0.0
+
+# Documentation
+
+Documentation is available [here](https://docs.rs/ed25519-dalek).
+
+# Policies
+
+All on-by-default features of this library are covered by semantic versioning (SemVer)
+
+## Minimum Supported Rust Version
+
+| Releases | MSRV   |
+| :---     | :---   |
+| 2.x      | 1.56.1 |
+| 1.x      | 1.41.0 |
+
+MSRV changes will be accompanied by a minor version bump.
+
+## Safety
+
+This crate does not require any unsafe and forbids all unsafe in-crate.
+
+# Performance
+
+Benchmarks are run using [criterion.rs](https://github.com/japaric/criterion.rs):
+
+```sh
+cargo bench --features "batch"
+# Uses avx2 or ifma only if compiled for an appropriate target.
+export RUSTFLAGS='--cfg curve25519_dalek_backend="simd" -C target_cpu=native'
+cargo +nightly bench --features "batch"
+```
+
+Performance is a secondary goal behind correctness, safety, and clarity, but we
+aim to be competitive with other implementations.
 
 On an Intel 10700K running at stock comparing between the `curve25519-dalek` backends.
 
@@ -46,7 +85,7 @@ On an Intel 10700K running at stock comparing between the `curve25519-dalek` bac
 | keypair generation              | 13.973 µs | 13.108 µs -6.5062% | 15.099 µs +15.407% |
 
 Please note that the backend over the default `serial` u32 / u64 has to be
-selected and is not automatically detected currently.
+selected and is not automatically detected currently over these.
 
 See more information about the used [curve25519-dalek backends](https//docs.rs/curve25519-dalek) to determine the right for your you.
 
@@ -78,11 +117,9 @@ this machine, around 100 signatures per batch is the optimum:
 
 ![](https://github.com/dalek-cryptography/ed25519-dalek/blob/master/res/batch-violin-benchmark.svg)
 
-Additionally, thanks to Rust, this implementation has both type and memory
-safety.  It's also easily readable by a much larger set of people than those who
-can read qhasm, making it more readily and more easily auditable.  We're of
-the opinion that, ultimately, these features—combined with speed—are more
-valuable than simply cycle counts alone.
+# Contributing
+
+See [CONTRIBUTING.md]
 
 # A Note on Signature Malleability
 
@@ -187,39 +224,6 @@ randomness.  This provides _synthetic randomness_, that is, randomness based on
 both deterministic and undeterinistic data.  The reason for doing this is to
 prevent badly seeded system RNGs from ruining the security of the signature
 verification scheme.
-
-# Features
-
-## #![no_std]
-
-This library aims to be `#![no_std]` compliant.  If batch verification is
-required (`--features='batch'`), please enable either of the `std` or `alloc`
-features.
-
-## Nightly Compilers
-
-To cause your application to build `ed25519-dalek` with the nightly feature
-enabled by default, instead do:
-
-```toml
-[dependencies.ed25519-dalek]
-version = "1"
-features = ["nightly"]
-```
-
-To cause your application to instead build with the nightly feature enabled
-when someone builds with `cargo build --features="nightly"` add the following
-to the `Cargo.toml`:
-
-```toml
-[features]
-nightly = ["ed25519-dalek/nightly"]
-```
-
-## Serde
-
-To enable [serde](https://serde.rs) support, build `ed25519-dalek` with the
-`serde` feature.
 
 ## (Micro)Architecture Specific Backends
 
