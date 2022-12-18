@@ -346,16 +346,13 @@ impl TryFrom<&[u8]> for VerifyingKey {
 
     #[inline]
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
-        let bytes = bytes.try_into().map_err(|_| {
-            InternalError::BytesLengthError {
-                name: "VerifyingKey",
-                length: PUBLIC_KEY_LENGTH,
-            }
+        let bytes = bytes.try_into().map_err(|_| InternalError::BytesLength {
+            name: "VerifyingKey",
+            length: PUBLIC_KEY_LENGTH,
         })?;
         Self::from_bytes(bytes)
     }
 }
-
 
 #[cfg(feature = "pkcs8")]
 impl DecodePublicKey for VerifyingKey {}
