@@ -51,7 +51,7 @@ MSRV changes will be accompanied by a minor version bump.
 
 ## Safety
 
-This crate does not require any unsafe and forbids all unsafe in-crate.
+This crate does not require any unsafe and forbids all unsafe in-crate outside tests.
 
 # Performance
 
