@@ -12,7 +12,7 @@
 #[cfg(feature = "pkcs8")]
 use ed25519::pkcs8::{self, DecodePrivateKey};
 
-#[cfg(any(test, feature = "rand"))]
+#[cfg(feature = "rand")]
 use rand_core::CryptoRngCore;
 
 #[cfg(feature = "serde")]
@@ -186,7 +186,7 @@ impl SigningKey {
     /// The standard hash function used for most ed25519 libraries is SHA-512,
     /// which is available with `use sha2::Sha512` as in the example above.
     /// Other suitable hash functions include Keccak-512 and Blake2b-512.
-    #[cfg(any(test, feature = "rand"))]
+    #[cfg(feature = "rand")]
     pub fn generate<R: CryptoRngCore + ?Sized>(csprng: &mut R) -> SigningKey {
         let mut secret = SecretKey::default();
         csprng.fill_bytes(&mut secret);
