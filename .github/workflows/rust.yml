@@ -77,3 +77,13 @@ jobs:
         with:
           components: rustfmt
       - run: cargo fmt --all -- --check
+
+  clippy:
+    name: Check that clippy is happy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@1.65
+        with:
+          components: clippy
+      - run: cargo clippy

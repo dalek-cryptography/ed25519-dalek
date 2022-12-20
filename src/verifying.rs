@@ -90,7 +90,7 @@ impl VerifyingKey {
 
     /// View this public key as a byte array.
     #[inline]
-    pub fn as_bytes<'a>(&'a self) -> &'a [u8; PUBLIC_KEY_LENGTH] {
+    pub fn as_bytes(&self) -> &[u8; PUBLIC_KEY_LENGTH] {
         &(self.0).0
     }
 
@@ -129,21 +129,11 @@ impl VerifyingKey {
     /// A `Result` whose okay value is an EdDSA `VerifyingKey` or whose error value
     /// is an `SignatureError` describing the error that occurred.
     #[inline]
-    pub fn from_bytes(bytes: &[u8]) -> Result<VerifyingKey, SignatureError> {
-        if bytes.len() != PUBLIC_KEY_LENGTH {
-            return Err(InternalError::BytesLengthError {
-                name: "VerifyingKey",
-                length: PUBLIC_KEY_LENGTH,
-            }
-            .into());
-        }
-        let mut bits: [u8; 32] = [0u8; 32];
-        bits.copy_from_slice(&bytes[..32]);
-
-        let compressed = CompressedEdwardsY(bits);
+    pub fn from_bytes(bytes: &[u8; PUBLIC_KEY_LENGTH]) -> Result<VerifyingKey, SignatureError> {
+        let compressed = CompressedEdwardsY(*bytes);
         let point = compressed
             .decompress()
-            .ok_or(InternalError::PointDecompressionError)?;
+            .ok_or(InternalError::PointDecompression)?;
 
         Ok(VerifyingKey(compressed, point))
     }
@@ -195,8 +185,6 @@ impl VerifyingKey {
         let signature = InternalSignature::try_from(signature)?;
 
         let mut h: Sha512 = Sha512::default();
-        let R: EdwardsPoint;
-        let k: Scalar;
 
         let ctx: &[u8] = context.unwrap_or(b"");
         debug_assert!(
@@ -207,20 +195,21 @@ impl VerifyingKey {
         let minus_A: EdwardsPoint = -self.1;
 
         h.update(b"SigEd25519 no Ed25519 collisions");
-        h.update(&[1]); // Ed25519ph
-        h.update(&[ctx.len() as u8]);
+        h.update([1]); // Ed25519ph
+        h.update([ctx.len() as u8]);
         h.update(ctx);
         h.update(signature.R.as_bytes());
         h.update(self.as_bytes());
         h.update(prehashed_message.finalize().as_slice());
 
-        k = Scalar::from_hash(h);
-        R = EdwardsPoint::vartime_double_scalar_mul_basepoint(&k, &(minus_A), &signature.s);
+        let k = Scalar::from_hash(h);
+        let R: EdwardsPoint =
+            EdwardsPoint::vartime_double_scalar_mul_basepoint(&k, &(minus_A), &signature.s);
 
         if R.compress() == signature.R {
             Ok(())
         } else {
-            Err(InternalError::VerifyError.into())
+            Err(InternalError::Verify.into())
         }
     }
 
@@ -295,32 +284,30 @@ impl VerifyingKey {
         let signature = InternalSignature::try_from(signature)?;
 
         let mut h: Sha512 = Sha512::new();
-        let R: EdwardsPoint;
-        let k: Scalar;
         let minus_A: EdwardsPoint = -self.1;
-        let signature_R: EdwardsPoint;
 
-        match signature.R.decompress() {
-            None => return Err(InternalError::VerifyError.into()),
-            Some(x) => signature_R = x,
-        }
+        let signature_R: EdwardsPoint = match signature.R.decompress() {
+            None => return Err(InternalError::Verify.into()),
+            Some(x) => x,
+        };
 
         // Logical OR is fine here as we're not trying to be constant time.
         if signature_R.is_small_order() || self.1.is_small_order() {
-            return Err(InternalError::VerifyError.into());
+            return Err(InternalError::Verify.into());
         }
 
         h.update(signature.R.as_bytes());
         h.update(self.as_bytes());
-        h.update(&message);
+        h.update(message);
 
-        k = Scalar::from_hash(h);
-        R = EdwardsPoint::vartime_double_scalar_mul_basepoint(&k, &(minus_A), &signature.s);
+        let k = Scalar::from_hash(h);
+        let R: EdwardsPoint =
+            EdwardsPoint::vartime_double_scalar_mul_basepoint(&k, &(minus_A), &signature.s);
 
         if R == signature_R {
             Ok(())
         } else {
-            Err(InternalError::VerifyError.into())
+            Err(InternalError::Verify.into())
         }
     }
 }
@@ -336,21 +323,20 @@ impl Verifier<ed25519::Signature> for VerifyingKey {
         let signature = InternalSignature::try_from(signature)?;
 
         let mut h: Sha512 = Sha512::new();
-        let R: EdwardsPoint;
-        let k: Scalar;
         let minus_A: EdwardsPoint = -self.1;
 
         h.update(signature.R.as_bytes());
         h.update(self.as_bytes());
-        h.update(&message);
+        h.update(message);
 
-        k = Scalar::from_hash(h);
-        R = EdwardsPoint::vartime_double_scalar_mul_basepoint(&k, &(minus_A), &signature.s);
+        let k = Scalar::from_hash(h);
+        let R: EdwardsPoint =
+            EdwardsPoint::vartime_double_scalar_mul_basepoint(&k, &(minus_A), &signature.s);
 
         if R.compress() == signature.R {
             Ok(())
         } else {
-            Err(InternalError::VerifyError.into())
+            Err(InternalError::Verify.into())
         }
     }
 }
@@ -358,8 +344,13 @@ impl Verifier<ed25519::Signature> for VerifyingKey {
 impl TryFrom<&[u8]> for VerifyingKey {
     type Error = SignatureError;
 
-    fn try_from(bytes: &[u8]) -> Result<VerifyingKey, SignatureError> {
-        VerifyingKey::from_bytes(bytes)
+    #[inline]
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+        let bytes = bytes.try_into().map_err(|_| InternalError::BytesLength {
+            name: "VerifyingKey",
+            length: PUBLIC_KEY_LENGTH,
+        })?;
+        Self::from_bytes(bytes)
     }
 }
 
@@ -431,6 +422,6 @@ impl<'d> Deserialize<'d> for VerifyingKey {
         D: Deserializer<'d>,
     {
         let bytes = <SerdeByteBuf>::deserialize(deserializer)?;
-        VerifyingKey::from_bytes(bytes.as_ref()).map_err(SerdeError::custom)
+        VerifyingKey::try_from(bytes.as_ref()).map_err(SerdeError::custom)
     }
 }
