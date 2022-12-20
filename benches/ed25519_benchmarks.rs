@@ -7,15 +7,19 @@
 // Authors:
 // - isis agora lovecruft <isis@patternsinthevoid.net>
 
+use criterion::{criterion_group, Criterion};
+
 mod ed25519_benches {
-    use criterion::{criterion_group, Criterion};
-    use ed25519_dalek::{Keypair, Signature, Signer};
+    use super::*;
+    use ed25519_dalek::Signature;
+    use ed25519_dalek::Signer;
+    use ed25519_dalek::SigningKey;
     use rand::prelude::ThreadRng;
     use rand::thread_rng;
 
     fn sign(c: &mut Criterion) {
         let mut csprng: ThreadRng = thread_rng();
-        let keypair: Keypair = Keypair::generate(&mut csprng);
+        let keypair: SigningKey = SigningKey::generate(&mut csprng);
         let msg: &[u8] = b"";
 
         c.bench_function("Ed25519 signing", move |b| b.iter(|| keypair.sign(msg)));
@@ -23,7 +27,7 @@ mod ed25519_benches {
 
     fn verify(c: &mut Criterion) {
         let mut csprng: ThreadRng = thread_rng();
-        let keypair: Keypair = Keypair::generate(&mut csprng);
+        let keypair: SigningKey = SigningKey::generate(&mut csprng);
         let msg: &[u8] = b"";
         let sig: Signature = keypair.sign(msg);
 
@@ -34,7 +38,7 @@ mod ed25519_benches {
 
     fn verify_strict(c: &mut Criterion) {
         let mut csprng: ThreadRng = thread_rng();
-        let keypair: Keypair = Keypair::generate(&mut csprng);
+        let keypair: SigningKey = SigningKey::generate(&mut csprng);
         let msg: &[u8] = b"";
         let sig: Signature = keypair.sign(msg);
 
@@ -45,7 +49,7 @@ mod ed25519_benches {
 
     #[cfg(any(feature = "batch", feature = "batch_deterministic"))]
     fn verify_batch_signatures(c: &mut Criterion) {
-        use ed25519_dalek::{verify_batch, PublicKey};
+        use ed25519_dalek::verify_batch;
 
         static BATCH_SIZES: [usize; 8] = [4, 8, 16, 32, 64, 96, 128, 256];
 
@@ -55,16 +59,17 @@ mod ed25519_benches {
             let name = format!("size={size}");
             group.bench_function(name, |b| {
                 let mut csprng: ThreadRng = thread_rng();
-                let keypairs: Vec<Keypair> =
-                    (0..size).map(|_| Keypair::generate(&mut csprng)).collect();
+                let keypairs: Vec<SigningKey> = (0..size)
+                    .map(|_| SigningKey::generate(&mut csprng))
+                    .collect();
                 let msg: &[u8] = b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
                 let messages: Vec<&[u8]> = (0..size).map(|_| msg).collect();
                 let signatures: Vec<Signature> =
                     keypairs.iter().map(|key| key.sign(&msg)).collect();
-                let public_keys: Vec<PublicKey> =
-                    keypairs.iter().map(|key| key.public_key()).collect();
+                let verifying_keys: Vec<_> =
+                    keypairs.iter().map(|key| key.verifying_key()).collect();
 
-                b.iter(|| verify_batch(&messages[..], &signatures[..], &public_keys[..]));
+                b.iter(|| verify_batch(&messages[..], &signatures[..], &verifying_keys[..]));
             });
         }
     }
@@ -77,7 +82,7 @@ mod ed25519_benches {
         let mut csprng: ThreadRng = thread_rng();
 
         c.bench_function("Ed25519 keypair generation", move |b| {
-            b.iter(|| Keypair::generate(&mut csprng))
+            b.iter(|| SigningKey::generate(&mut csprng))
         });
     }
 
