@@ -89,7 +89,7 @@ impl BatchTranscript for Transcript {
 struct ZeroRng;
 
 #[cfg(feature = "batch_deterministic")]
-impl RngCore for ZeroRng {
+impl rand_core::RngCore for ZeroRng {
     fn next_u32(&mut self) -> u32 {
         rand_core::impls::next_u32_via_fill(self)
     }
@@ -115,7 +115,7 @@ impl RngCore for ZeroRng {
 }
 
 #[cfg(feature = "batch_deterministic")]
-impl CryptoRng for ZeroRng {}
+impl rand_core::CryptoRng for ZeroRng {}
 
 /// Verify a batch of `signatures` on `messages` with their respective `verifying_keys`.
 ///
