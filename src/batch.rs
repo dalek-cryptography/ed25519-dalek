@@ -9,12 +9,10 @@
 
 //! Batch signature verification.
 
-#[cfg(feature = "alloc")]
-extern crate alloc;
-#[cfg(feature = "alloc")]
+#[cfg(all(feature = "batch", feature = "batch_deterministic"))]
+compile_error!("`batch` and `batch_deterministic` features are mutually exclusive");
+
 use alloc::vec::Vec;
-#[cfg(all(not(feature = "alloc"), feature = "std"))]
-use std::vec::Vec;
 
 use core::convert::TryFrom;
 use core::iter::once;
@@ -29,9 +27,9 @@ pub use curve25519_dalek::digest::Digest;
 
 use merlin::Transcript;
 
-use rand::Rng;
 #[cfg(all(feature = "batch", not(feature = "batch_deterministic")))]
 use rand::thread_rng;
+use rand::Rng;
 #[cfg(all(not(feature = "batch"), feature = "batch_deterministic"))]
 use rand_core;
 
@@ -39,8 +37,8 @@ use sha2::Sha512;
 
 use crate::errors::InternalError;
 use crate::errors::SignatureError;
-use crate::public::PublicKey;
 use crate::signature::InternalSignature;
+use crate::VerifyingKey;
 
 trait BatchTranscript {
     fn append_scalars(&mut self, scalars: &Vec<Scalar>);
@@ -101,7 +99,7 @@ impl rand_core::RngCore for ZeroRng {
     /// STROBE state based on external randomness, we're doing an
     /// `ENC_{state}(00000000000000000000000000000000)` operation, which is
     /// identical to the STROBE `MAC` operation.
-    fn fill_bytes(&mut self, _dest: &mut [u8]) { }
+    fn fill_bytes(&mut self, _dest: &mut [u8]) {}
 
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
         self.fill_bytes(dest);
@@ -117,13 +115,13 @@ fn zero_rng() -> ZeroRng {
     ZeroRng {}
 }
 
-/// Verify a batch of `signatures` on `messages` with their respective `public_keys`.
+/// Verify a batch of `signatures` on `messages` with their respective `verifying_keys`.
 ///
 /// # Inputs
 ///
 /// * `messages` is a slice of byte slices, one per signed message.
 /// * `signatures` is a slice of `Signature`s.
-/// * `public_keys` is a slice of `PublicKey`s.
+/// * `verifying_keys` is a slice of `VerifyingKey`s.
 ///
 /// # Returns
 ///
@@ -188,51 +186,50 @@ fn zero_rng() -> ZeroRng {
 /// falsely "pass" the synthethic batch verification equation *for the same
 /// inputs*, but *only some crafted inputs* will pass the deterministic batch
 /// single, and neither of these will ever pass single signature verification,
-/// see the documentation for [`PublicKey.validate()`].
+/// see the documentation for [`VerifyingKey.validate()`].
 ///
 /// # Examples
 ///
 /// ```
-/// extern crate ed25519_dalek;
-/// extern crate rand;
-///
 /// use ed25519_dalek::verify_batch;
-/// use ed25519_dalek::Keypair;
-/// use ed25519_dalek::PublicKey;
+/// use ed25519_dalek::SigningKey;
+/// use ed25519_dalek::VerifyingKey;
 /// use ed25519_dalek::Signer;
 /// use ed25519_dalek::Signature;
 /// use rand::rngs::OsRng;
 ///
 /// # fn main() {
 /// let mut csprng = OsRng{};
-/// let keypairs: Vec<Keypair> = (0..64).map(|_| Keypair::generate(&mut csprng)).collect();
+/// let signing_keys: Vec<_> = (0..64).map(|_| SigningKey::generate(&mut csprng)).collect();
 /// let msg: &[u8] = b"They're good dogs Brant";
 /// let messages: Vec<&[u8]> = (0..64).map(|_| msg).collect();
-/// let signatures:  Vec<Signature> = keypairs.iter().map(|key| key.sign(&msg)).collect();
-/// let public_keys: Vec<PublicKey> = keypairs.iter().map(|key| key.public).collect();
+/// let signatures:  Vec<Signature> = signing_keys.iter().map(|key| key.sign(&msg)).collect();
+/// let verifying_keys: Vec<VerifyingKey> = signing_keys.iter().map(|key| key.verifying_key()).collect();
 ///
-/// let result = verify_batch(&messages[..], &signatures[..], &public_keys[..]);
+/// let result = verify_batch(&messages[..], &signatures[..], &verifying_keys[..]);
 /// assert!(result.is_ok());
 /// # }
 /// ```
-#[cfg(all(any(feature = "batch", feature = "batch_deterministic"),
-          any(feature = "alloc", feature = "std")))]
 #[allow(non_snake_case)]
 pub fn verify_batch(
     messages: &[&[u8]],
     signatures: &[ed25519::Signature],
-    public_keys: &[PublicKey],
-) -> Result<(), SignatureError>
-{
+    verifying_keys: &[VerifyingKey],
+) -> Result<(), SignatureError> {
     // Return an Error if any of the vectors were not the same size as the others.
-    if signatures.len() != messages.len() ||
-        signatures.len() != public_keys.len() ||
-        public_keys.len() != messages.len() {
-        return Err(InternalError::ArrayLengthError{
-            name_a: "signatures", length_a: signatures.len(),
-            name_b: "messages", length_b: messages.len(),
-            name_c: "public_keys", length_c: public_keys.len(),
-        }.into());
+    if signatures.len() != messages.len()
+        || signatures.len() != verifying_keys.len()
+        || verifying_keys.len() != messages.len()
+    {
+        return Err(InternalError::ArrayLength {
+            name_a: "signatures",
+            length_a: signatures.len(),
+            name_b: "messages",
+            length_b: messages.len(),
+            name_c: "verifying_keys",
+            length_c: verifying_keys.len(),
+        }
+        .into());
     }
 
     // Convert all signatures to `InternalSignature`
@@ -242,13 +239,15 @@ pub fn verify_batch(
         .collect::<Result<Vec<_>, _>>()?;
 
     // Compute H(R || A || M) for each (signature, public_key, message) triplet
-    let hrams: Vec<Scalar> = (0..signatures.len()).map(|i| {
-        let mut h: Sha512 = Sha512::default();
-        h.update(signatures[i].R.as_bytes());
-        h.update(public_keys[i].as_bytes());
-        h.update(&messages[i]);
-        Scalar::from_hash(h)
-    }).collect();
+    let hrams: Vec<Scalar> = (0..signatures.len())
+        .map(|i| {
+            let mut h: Sha512 = Sha512::default();
+            h.update(signatures[i].R.as_bytes());
+            h.update(verifying_keys[i].as_bytes());
+            h.update(&messages[i]);
+            Scalar::from_hash(h)
+        })
+        .collect();
 
     // Collect the message lengths and the scalar portions of the signatures,
     // and add them into the transcript.
@@ -288,18 +287,19 @@ pub fn verify_batch(
     let zhrams = hrams.iter().zip(zs.iter()).map(|(hram, z)| hram * z);
 
     let Rs = signatures.iter().map(|sig| sig.R.decompress());
-    let As = public_keys.iter().map(|pk| Some(pk.1));
+    let As = verifying_keys.iter().map(|pk| Some(pk.1));
     let B = once(Some(constants::ED25519_BASEPOINT_POINT));
 
     // Compute (-∑ z[i]s[i] (mod l)) B + ∑ z[i]R[i] + ∑ (z[i]H(R||A||M)[i] (mod l)) A[i] = 0
     let id = EdwardsPoint::optional_multiscalar_mul(
         once(-B_coefficient).chain(zs.iter().cloned()).chain(zhrams),
         B.chain(Rs).chain(As),
-    ).ok_or(InternalError::VerifyError)?;
+    )
+    .ok_or(InternalError::Verify)?;
 
     if id.is_identity() {
         Ok(())
     } else {
-        Err(InternalError::VerifyError.into())
+        Err(InternalError::Verify.into())
     }
 }

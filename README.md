@@ -16,6 +16,16 @@ To install, add the following to your project's `Cargo.toml`:
 version = "1"
 ```
 
+# Minimum Supported Rust Version
+
+This crate requires Rust 1.60.0 at a minimum. Older 1.x releases of this crate supported an MSRV of 1.41.
+
+In the future, MSRV changes will be accompanied by a minor version bump.
+
+# Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a list of changes made in past version of this crate.
+
 # Benchmarks
 
 On an Intel Skylake i9-7900X running at 3.30 GHz, without TurboBoost, this code achieves
