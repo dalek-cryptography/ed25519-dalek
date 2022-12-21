@@ -142,6 +142,9 @@ mod vectors {
         [&r.compress().as_bytes()[..], &s.as_bytes()[..]].concat()
     }
 
+    // Tests that verify_strict() rejects small-order pubkeys. We test this by explicitly
+    // constructing a pubkey-signature pair that verifies with respect to two distinct messages.
+    // This should be accepted by verify(), but rejected by verify_strict().
     #[test]
     fn repudiation() {
         use curve25519_dalek::traits::IsIdentity;
@@ -193,21 +196,28 @@ mod vectors {
         );
     }
 
-    fn compute_hram_prehashed(message: &[u8], context: Option<&[u8]>, pub_key: &EdwardsPoint, signature_r: &EdwardsPoint) -> Scalar {
+    fn compute_hram_prehashed(
+        message: &[u8],
+        context: Option<&[u8]>,
+        pub_key: &EdwardsPoint,
+        signature_r: &EdwardsPoint,
+    ) -> Scalar {
         let ctx: &[u8] = context.unwrap_or(b"");
         let k_bytes = Sha512::default()
-            .chain(b"SigEd25519 no Ed25519 collisions")
-            .chain(&[1])
-            .chain(&[ctx.len() as u8])
-            .chain(ctx)
-            .chain(&signature_r.compress().as_bytes())
-            .chain(&pub_key.compress().as_bytes()[..])
-            .chain(&message);
+            .chain_update(b"SigEd25519 no Ed25519 collisions")
+            .chain_update(&[1])
+            .chain_update(&[ctx.len() as u8])
+            .chain_update(ctx)
+            .chain_update(&signature_r.compress().as_bytes())
+            .chain_update(&pub_key.compress().as_bytes()[..])
+            .chain_update(&message);
         let mut k_output = [0u8; 64];
         k_output.copy_from_slice(k_bytes.finalize().as_slice());
         Scalar::from_bytes_mod_order_wide(&k_output)
     }
 
+    // Identical to repudiation() above, but testing verify_prehashed against
+    // verify_prehashed_strict
     #[test]
     fn repudiation_prehash() {
         use curve25519_dalek::traits::IsIdentity;
@@ -224,7 +234,7 @@ mod vectors {
         fn non_null_scalar() -> Scalar {
             let mut rng = rand::rngs::OsRng;
             let mut s_candidate = Scalar::random(&mut rng);
-            while s_candidate == Scalar::zero() {
+            while s_candidate == Scalar::ZERO {
                 s_candidate = Scalar::random(&mut rng);
             }
             s_candidate
@@ -242,9 +252,14 @@ mod vectors {
         }
 
         let (mut r, mut pub_key) = pick_r_and_pubkey(s);
+        let context_str = Some(&b"edtest"[..]);
 
-        while !(pub_key.neg() + compute_hram_prehashed(message1, Some(b"edtest"), &pub_key, &r) * pub_key).is_identity()
-            || !(pub_key.neg() + compute_hram_prehashed(message2, Some(b"edtest"), &pub_key, &r) * pub_key).is_identity()
+        while !(pub_key.neg()
+            + compute_hram_prehashed(message1, context_str, &pub_key, &r) * pub_key)
+            .is_identity()
+            || !(pub_key.neg()
+                + compute_hram_prehashed(message2, context_str, &pub_key, &r) * pub_key)
+                .is_identity()
         {
             s = non_null_scalar();
             let key = pick_r_and_pubkey(s);
@@ -253,13 +268,23 @@ mod vectors {
         }
 
         let signature = serialize_signature(&r, &s);
-        let pk = PublicKey::from_bytes(&pub_key.compress().as_bytes()[..]).unwrap();
+        let pk = VerifyingKey::from_bytes(&pub_key.compress().as_bytes()).unwrap();
         let sig = Signature::try_from(&signature[..]).unwrap();
         // The same signature verifies for both messages
-        assert!(pk.verify_prehashed(message1_hash.clone(), Some(b"edtest"), &sig).is_ok() && pk.verify_prehashed(message2_hash.clone(), Some(b"edtest"), &sig).is_ok());
+        assert!(
+            pk.verify_prehashed(message1_hash.clone(), context_str, &sig)
+                .is_ok()
+                && pk
+                    .verify_prehashed(message2_hash.clone(), context_str, &sig)
+                    .is_ok()
+        );
         // But not with a strict signature: verify_strict refuses small order keys
         assert!(
-            pk.verify_prehashed_strict(message1_hash, Some(b"edtest"), &sig).is_err() || pk.verify_prehashed_strict(message2_hash, Some(b"edtest"), &sig).is_err()
+            pk.verify_prehashed_strict(message1_hash, context_str, &sig)
+                .is_err()
+                || pk
+                    .verify_prehashed_strict(message2_hash, context_str, &sig)
+                    .is_err()
         );
     }
 }

@@ -347,19 +347,22 @@ impl VerifyingKey {
         let k: Scalar;
 
         let ctx: &[u8] = context.unwrap_or(b"");
-        debug_assert!(ctx.len() <= 255, "The context must not be longer than 255 octets.");
+        debug_assert!(
+            ctx.len() <= 255,
+            "The context must not be longer than 255 octets."
+        );
 
         let minus_A: EdwardsPoint = -self.1;
         let signature_R: EdwardsPoint;
 
         match signature.R.decompress() {
-            None => return Err(InternalError::VerifyError.into()),
+            None => return Err(InternalError::Verify.into()),
             Some(x) => signature_R = x,
         }
 
         // Logical OR is fine here as we're not trying to be constant time.
         if signature_R.is_small_order() || self.1.is_small_order() {
-            return Err(InternalError::VerifyError.into());
+            return Err(InternalError::Verify.into());
         }
 
         h.update(b"SigEd25519 no Ed25519 collisions");
@@ -376,7 +379,7 @@ impl VerifyingKey {
         if R == signature_R {
             Ok(())
         } else {
-            Err(InternalError::VerifyError.into())
+            Err(InternalError::Verify.into())
         }
     }
 }
