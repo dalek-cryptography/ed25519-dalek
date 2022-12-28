@@ -50,12 +50,13 @@ name = "ed25519_benchmarks"
 harness = false
 
 [features]
-default = ["std", "rand_core", "zeroize"]
+default = ["fast", "std", "rand_core", "zeroize"]
 alloc = ["curve25519-dalek/alloc", "ed25519/alloc", "serde?/alloc", "zeroize/alloc"]
 std = ["alloc", "ed25519/std", "serde?/std", "sha2/std"]
 
 asm = ["sha2/asm"]
 batch = ["alloc", "merlin", "rand_core"]
+fast = ["curve25519-dalek/basepoint-tables"]
 # This features turns off stricter checking for scalar malleability in signatures
 legacy_compatibility = []
 pkcs8 = ["ed25519/pkcs8"]
