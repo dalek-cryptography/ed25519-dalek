@@ -14,7 +14,7 @@ const VERIFY_ALLOWED_EDGECASES: &[Flag] = &[
     // `ReencodedK` is not actually permitted by `verify()`, but it looks that way in the tests
     // because it sometimes occurs with a low-order A. 1/8 of the time, the resulting signature
     // will be identical the one made with a normal k. find_validation_criteria shows that indeed
-    // this occurs in 10/58 of the time
+    // this occurs 10/58 of the time
     Flag::ReencodedK,
 ];
 
