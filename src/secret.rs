@@ -180,6 +180,13 @@ impl SecretKey {
     }
 }
 
+
+impl From<[u8; SECRET_KEY_LENGTH]> for SecretKey {
+    fn from(value: [u8; SECRET_KEY_LENGTH]) -> Self {
+        SecretKey(value)
+    }
+}
+
 #[cfg(feature = "serde")]
 impl Serialize for SecretKey {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -537,4 +544,21 @@ mod test {
 
         assert!(public_from_secret == public_from_expanded_secret);
     }
+
+    #[test]
+    fn secret_key_from_array() {
+        let arr = [0x15u8; SECRET_KEY_LENGTH];
+        let key = SecretKey::from(arr);
+        let memory: &[u8] = unsafe { ::std::slice::from_raw_parts(key.0.as_ptr(), 32) };
+        assert!(memory.contains(&0x15));
+    }
+    // below will no compile
+    // #[test]
+    // fn secret_key_from_array_2() {
+    //     let arr = [0x15u8; SECRET_KEY_LENGTH+1];
+    //     let key = SecretKey::from(arr);
+    //     let memory: &[u8] = unsafe { ::std::slice::from_raw_parts(key.0.as_ptr(), 32) };
+    //     assert!(memory.contains(&0x15));
+    // }
+
 }
