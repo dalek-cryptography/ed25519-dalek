@@ -39,7 +39,7 @@ use crate::VerifyingKey;
 /// Gets an RNG from the system, or the zero RNG if we're in deterministic mode. If available, we
 /// prefer `thread_rng`, since it's faster than `OsRng`.
 fn get_rng() -> impl rand_core::CryptoRngCore {
-    #[cfg(feature = "batch_deterministic")]
+    #[cfg(all(feature = "batch_deterministic", not(feature = "batch")))]
     return ZeroRng;
 
     #[cfg(all(feature = "batch", feature = "std"))]
