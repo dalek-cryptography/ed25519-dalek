@@ -4,13 +4,17 @@ use ed25519_dalek::{Signature, VerifyingKey};
 use serde::{de::Error as SError, Deserialize, Deserializer};
 use std::{collections::BTreeSet as Set, fs::File};
 
-/// The set of edge cases that [`VerifyingKey::verify()`] permits
+/// The set of edge cases that [`VerifyingKey::verify()`] permits.
 const VERIFY_ALLOWED_EDGECASES: &[Flag] = &[
     Flag::LowOrderA,
     Flag::LowOrderR,
     Flag::NonCanonicalA,
     Flag::LowOrderComponentA,
     Flag::LowOrderComponentR,
+    // `ReencodedK` is not actually permitted by `verify()`, but it looks that way in the tests
+    // because it sometimes occurs with a low-order A. 1/8 of the time, the resulting signature
+    // will be identical the one made with a normal k. find_validation_criteria shows that indeed
+    // this occurs in 10/58 of the time
     Flag::ReencodedK,
 ];
 
@@ -172,6 +176,11 @@ fn find_validation_criteria() {
     let mut verify_allowed_edgecases = Set::new();
     let mut verify_strict_allowed_edgecases = Set::new();
 
+    // Counts the number of times a signature with a re-encoded k and a low-order A verified. This
+    // happens with 1/8 probability, assuming the usual verification equation(s).
+    let mut num_lucky_reencoded_k = 0;
+    let mut num_reencoded_k = 0;
+
     for TestVector {
         number: _,
         pubkey,
@@ -182,9 +191,22 @@ fn find_validation_criteria() {
     {
         // If verify() was a success, add all the associated flags to verify-permitted set
         let success = pubkey.verify(&msg, &sig).is_ok();
+
+        // If this is ReencodedK && LowOrderA, log some statistics
+        if flags.contains(&Flag::ReencodedK) && flags.contains(&Flag::LowOrderA) {
+            num_reencoded_k += 1;
+            num_lucky_reencoded_k += success as u8;
+        }
+
         if success {
             for flag in &flags {
-                verify_allowed_edgecases.insert(*flag);
+                // Don't count re-encoded k when A is low-order. This is because the
+                // re-encoded k might be a multiple of 8 by accident
+                if *flag == Flag::ReencodedK && flags.contains(&Flag::LowOrderA) {
+                    continue;
+                } else {
+                    verify_allowed_edgecases.insert(*flag);
+                }
             }
         }
 
@@ -202,5 +224,9 @@ fn find_validation_criteria() {
     println!(
         "VERIFY_STRICT_ALLOWED_EDGECASES: {:?}",
         verify_strict_allowed_edgecases
+    );
+    println!(
+        "re-encoded k && low-order A yielded a valid signature {}/{} of the time",
+        num_lucky_reencoded_k, num_reencoded_k
     );
 }
