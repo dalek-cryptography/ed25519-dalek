@@ -24,6 +24,8 @@ const VERIFY_STRICT_ALLOWED_EDGECASES: &[Flag] =
 /// [README]: https://github.com/C2SP/CCTV/blob/5ea85644bd035c555900a2f707f7e4c31ea65ced/ed25519vectors/README.md
 #[derive(Deserialize, Debug, Copy, Clone, PartialOrd, Ord, Eq, PartialEq)]
 enum Flag {
+    #[serde(rename = "low_order")]
+    LowOrder,
     #[serde(rename = "low_order_A")]
     LowOrderA,
     #[serde(rename = "low_order_R")]
