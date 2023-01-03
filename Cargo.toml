@@ -56,8 +56,6 @@ std = ["alloc", "ed25519/std", "rand?/std", "serde?/std", "sha2/std"]
 
 asm = ["sha2/asm"]
 batch = ["alloc", "merlin", "rand"]
-# This feature enables deterministic batch verification.
-batch_deterministic = ["alloc", "merlin", "rand"]
 # This features turns off stricter checking for scalar malleability in signatures
 legacy_compatibility = []
 pkcs8 = ["ed25519/pkcs8"]

@@ -9,9 +9,6 @@
 
 //! Batch signature verification.
 
-#[cfg(all(feature = "batch", feature = "batch_deterministic"))]
-compile_error!("`batch` and `batch_deterministic` features are mutually exclusive");
-
 use alloc::vec::Vec;
 
 use core::convert::TryFrom;
@@ -28,6 +25,7 @@ pub use curve25519_dalek::digest::Digest;
 use merlin::Transcript;
 
 use rand::Rng;
+use rand_core::CryptoRngCore;
 
 use sha2::Sha512;
 
@@ -35,19 +33,6 @@ use crate::errors::InternalError;
 use crate::errors::SignatureError;
 use crate::signature::InternalSignature;
 use crate::VerifyingKey;
-
-/// Gets an RNG from the system, or the zero RNG if we're in deterministic mode. If available, we
-/// prefer `thread_rng`, since it's faster than `OsRng`.
-fn get_rng() -> impl rand_core::CryptoRngCore {
-    #[cfg(all(feature = "batch_deterministic", not(feature = "batch")))]
-    return ZeroRng;
-
-    #[cfg(all(feature = "batch", feature = "std"))]
-    return rand::thread_rng();
-
-    #[cfg(all(feature = "batch", not(feature = "std")))]
-    return rand::rngs::OsRng;
-}
 
 trait BatchTranscript {
     fn append_scalars(&mut self, scalars: &Vec<Scalar>);
@@ -84,11 +69,10 @@ impl BatchTranscript for Transcript {
 }
 
 /// An implementation of `rand_core::RngCore` which does nothing, to provide purely deterministic
-/// transcript-based nonces, rather than synthetically random nonces.
-#[cfg(feature = "batch_deterministic")]
+/// transcript-based nonces, rather than synthetically random nonces. This is only used for
+/// `verify_batch_deterministic`.
 struct ZeroRng;
 
-#[cfg(feature = "batch_deterministic")]
 impl rand_core::RngCore for ZeroRng {
     fn next_u32(&mut self) -> u32 {
         rand_core::impls::next_u32_via_fill(self)
@@ -114,7 +98,6 @@ impl rand_core::RngCore for ZeroRng {
     }
 }
 
-#[cfg(feature = "batch_deterministic")]
 impl rand_core::CryptoRng for ZeroRng {}
 
 /// Verify a batch of `signatures` on `messages` with their respective `verifying_keys`.
@@ -193,11 +176,9 @@ impl rand_core::CryptoRng for ZeroRng {}
 /// # Examples
 ///
 /// ```
-/// use ed25519_dalek::verify_batch;
-/// use ed25519_dalek::SigningKey;
-/// use ed25519_dalek::VerifyingKey;
-/// use ed25519_dalek::Signer;
-/// use ed25519_dalek::Signature;
+/// use ed25519_dalek::{
+///     verify_batch, SigningKey, VerifyingKey, Signer, Signature,
+/// };
 /// use rand::rngs::OsRng;
 ///
 /// # fn main() {
@@ -208,12 +189,13 @@ impl rand_core::CryptoRng for ZeroRng {}
 /// let signatures:  Vec<Signature> = signing_keys.iter().map(|key| key.sign(&msg)).collect();
 /// let verifying_keys: Vec<VerifyingKey> = signing_keys.iter().map(|key| key.verifying_key()).collect();
 ///
-/// let result = verify_batch(&messages[..], &signatures[..], &verifying_keys[..]);
+/// let result = verify_batch(&mut csprng, &messages[..], &signatures[..], &verifying_keys[..]);
 /// assert!(result.is_ok());
 /// # }
 /// ```
 #[allow(non_snake_case)]
-pub fn verify_batch(
+pub fn verify_batch<R: CryptoRngCore>(
+    csprng: &mut R,
     messages: &[&[u8]],
     signatures: &[ed25519::Signature],
     verifying_keys: &[VerifyingKey],
@@ -265,12 +247,12 @@ pub fn verify_batch(
     transcript.append_message_lengths(&message_lengths);
     transcript.append_scalars(&scalars);
 
-    let mut prng = transcript.build_rng().finalize(&mut get_rng());
+    let mut synthetic_rng = transcript.build_rng().finalize(csprng);
 
     // Select a random 128-bit scalar for each signature.
     let zs: Vec<Scalar> = signatures
         .iter()
-        .map(|_| Scalar::from(prng.gen::<u128>()))
+        .map(|_| Scalar::from(synthetic_rng.gen::<u128>()))
         .collect();
 
     // Compute the basepoint coefficient, ∑ s[i]z[i] (mod l)
@@ -300,4 +282,16 @@ pub fn verify_batch(
     } else {
         Err(InternalError::Verify.into())
     }
+}
+
+/// Same as [`verify_batch`], except this takes no RNG.
+///
+/// **WARNING:** Do not use this if you can help it. Use [`verify_batch`]. The reasoning is
+/// outlined in [its documentation][`verify_batch`].
+pub fn verify_batch_deterministic(
+    messages: &[&[u8]],
+    signatures: &[ed25519::Signature],
+    verifying_keys: &[VerifyingKey],
+) -> Result<(), SignatureError> {
+    verify_batch(&mut ZeroRng, messages, signatures, verifying_keys)
 }
