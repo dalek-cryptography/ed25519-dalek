@@ -25,7 +25,6 @@ pub use curve25519_dalek::digest::Digest;
 use merlin::Transcript;
 
 use rand::Rng;
-use rand_core::CryptoRngCore;
 
 use sha2::Sha512;
 
@@ -69,8 +68,7 @@ impl BatchTranscript for Transcript {
 }
 
 /// An implementation of `rand_core::RngCore` which does nothing, to provide purely deterministic
-/// transcript-based nonces, rather than synthetically random nonces. This is only used for
-/// `verify_batch_deterministic`.
+/// transcript-based nonces, rather than synthetically random nonces.
 struct ZeroRng;
 
 impl rand_core::RngCore for ZeroRng {
@@ -114,8 +112,6 @@ impl rand_core::CryptoRng for ZeroRng {}
 ///   `SignatureError` containing a description of the internal error which
 ///   occured.
 ///
-/// # Notes on Nonce Generation & Malleability
-///
 /// ## On Synthetic Nonces
 ///
 /// This library defaults to using what is called "synthetic" nonces, which
@@ -131,15 +127,8 @@ impl rand_core::CryptoRng for ZeroRng {}
 ///
 /// ## On Deterministic Nonces
 ///
-/// In order to be ammenable to protocols which require stricter third-party
-/// auditability trails, such as in some financial cryptographic settings, this
-/// library also supports a `--features=batch_deterministic` setting, where the
-/// nonces for batch signature verification are derived purely from the inputs
-/// to this function themselves.
-///
-/// **This is not recommended for use unless you have several cryptographers on
-///   staff who can advise you in its usage and all the horrible, terrible,
-///   awful ways it can go horribly, terribly, awfully wrong.**
+/// The nonces for batch signature verification are derived purely from the inputs to this function
+/// themselves.
 ///
 /// In any sigma protocol it is wise to include as much context pertaining
 /// to the public state in the protocol as possible, to avoid malleability
@@ -158,20 +147,12 @@ impl rand_core::CryptoRng for ZeroRng {}
 /// `M`s separately, saves us a bit of context hashing since the
 /// `H(R||A||M)`s need to be computed for the verification equation anyway.
 ///
-/// The latter prevents a malleability attack only found in deterministic batch
-/// signature verification (i.e. only when compiling `ed25519-dalek` with
-/// `--features batch_deterministic`) wherein an adversary, without access
+/// The latter prevents a malleability attack wherein an adversary, without access
 /// to the signing key(s), can take any valid signature, `(s,R)`, and swap
-/// `s` with `s' = -z1`.  This doesn't contitute a signature forgery, merely
+/// `s` with `s' = -z1`.  This doesn't constitute a signature forgery, merely
 /// a vulnerability, as the resulting signature will not pass single
 /// signature verification.  (Thanks to Github users @real_or_random and
 /// @jonasnick for pointing out this malleability issue.)
-///
-/// For an additional way in which signatures can be made to probablistically
-/// falsely "pass" the synthethic batch verification equation *for the same
-/// inputs*, but *only some crafted inputs* will pass the deterministic batch
-/// single, and neither of these will ever pass single signature verification,
-/// see the documentation for [`VerifyingKey.validate()`].
 ///
 /// # Examples
 ///
@@ -185,17 +166,16 @@ impl rand_core::CryptoRng for ZeroRng {}
 /// let mut csprng = OsRng;
 /// let signing_keys: Vec<_> = (0..64).map(|_| SigningKey::generate(&mut csprng)).collect();
 /// let msg: &[u8] = b"They're good dogs Brant";
-/// let messages: Vec<&[u8]> = (0..64).map(|_| msg).collect();
-/// let signatures:  Vec<Signature> = signing_keys.iter().map(|key| key.sign(&msg)).collect();
-/// let verifying_keys: Vec<VerifyingKey> = signing_keys.iter().map(|key| key.verifying_key()).collect();
+/// let messages: Vec<_> = (0..64).map(|_| msg).collect();
+/// let signatures:  Vec<_> = signing_keys.iter().map(|key| key.sign(&msg)).collect();
+/// let verifying_keys: Vec<_> = signing_keys.iter().map(|key| key.verifying_key()).collect();
 ///
-/// let result = verify_batch(&mut csprng, &messages[..], &signatures[..], &verifying_keys[..]);
+/// let result = verify_batch(&messages, &signatures, &verifying_keys);
 /// assert!(result.is_ok());
 /// # }
 /// ```
 #[allow(non_snake_case)]
-pub fn verify_batch<R: CryptoRngCore>(
-    csprng: &mut R,
+pub fn verify_batch(
     messages: &[&[u8]],
     signatures: &[ed25519::Signature],
     verifying_keys: &[VerifyingKey],
@@ -247,12 +227,12 @@ pub fn verify_batch<R: CryptoRngCore>(
     transcript.append_message_lengths(&message_lengths);
     transcript.append_scalars(&scalars);
 
-    let mut synthetic_rng = transcript.build_rng().finalize(csprng);
+    let mut rng = transcript.build_rng().finalize(&mut ZeroRng);
 
     // Select a random 128-bit scalar for each signature.
     let zs: Vec<Scalar> = signatures
         .iter()
-        .map(|_| Scalar::from(synthetic_rng.gen::<u128>()))
+        .map(|_| Scalar::from(rng.gen::<u128>()))
         .collect();
 
     // Compute the basepoint coefficient, ∑ s[i]z[i] (mod l)
@@ -282,16 +262,4 @@ pub fn verify_batch<R: CryptoRngCore>(
     } else {
         Err(InternalError::Verify.into())
     }
-}
-
-/// Same as [`verify_batch`], except this takes no RNG.
-///
-/// **WARNING:** Do not use this if you can help it. Use [`verify_batch`]. The reasoning is
-/// outlined in [its documentation][`verify_batch`].
-pub fn verify_batch_deterministic(
-    messages: &[&[u8]],
-    signatures: &[ed25519::Signature],
-    verifying_keys: &[VerifyingKey],
-) -> Result<(), SignatureError> {
-    verify_batch(&mut ZeroRng, messages, signatures, verifying_keys)
 }
