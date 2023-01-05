@@ -24,7 +24,7 @@ pub use curve25519_dalek::digest::Digest;
 
 use merlin::Transcript;
 
-use rand::Rng;
+use rand_core::RngCore;
 
 use sha2::Sha512;
 
@@ -97,6 +97,13 @@ impl rand_core::RngCore for ZeroRng {
 }
 
 impl rand_core::CryptoRng for ZeroRng {}
+
+// We write our own gen() function so we don't need to pull in the rand crate
+fn gen_u128<R: RngCore>(rng: &mut R) -> u128 {
+    let mut buf = [0u8; 16];
+    rng.fill_bytes(&mut buf);
+    u128::from_ne_bytes(buf)
+}
 
 /// Verify a batch of `signatures` on `messages` with their respective `verifying_keys`.
 ///
@@ -232,7 +239,7 @@ pub fn verify_batch(
     // Select a random 128-bit scalar for each signature.
     let zs: Vec<Scalar> = signatures
         .iter()
-        .map(|_| Scalar::from(rng.gen::<u128>()))
+        .map(|_| Scalar::from(gen_u128(&mut rng)))
         .collect();
 
     // Compute the basepoint coefficient, ∑ s[i]z[i] (mod l)
