@@ -144,7 +144,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md)
 The signatures produced by this library are malleable, as discussed in
 [the original paper](https://ed25519.cr.yp.to/ed25519-20110926.pdf):
 
-![](https://github.com/dalek-cryptography/ed25519-dalek/blob/master/res/ed25519-malleability.png)
+![](https://cdn.jsdelivr.net/gh/dalek-cryptography/ed25519-dalek/docs/assets/ed25519-malleability.png)
 
 While the scalar component of our `Signature` struct is strictly *not*
 malleable, because reduction checks are put in place upon `Signature`
