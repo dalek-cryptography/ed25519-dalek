@@ -19,7 +19,7 @@ This crate is `#[no_std]` compatible with `default-features = false`
 | Feature                | Default? | Description |
 | :---                   | :---     | :---        |
 | `std`                  | ✓        | TODO        |
-| `rand`                 | ✓        | TODO        |
+| `rand_core`            | ✓        | TODO        |
 | `alloc`                |          | TODO        |
 | `batch`                |          | TODO        |
 | `asm`                  |          | Assembly implementation of SHA-2 compression functions |
