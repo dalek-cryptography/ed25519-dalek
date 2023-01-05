@@ -43,8 +43,8 @@ All on-by-default features of this library are covered by semantic versioning (S
 
 | Releases | MSRV   |
 | :---     | :---   |
-| 2.x      | 1.56.1 |
-| 1.x      | 1.41.0 |
+| 2.x      | 1.60   |
+| 1.x      | 1.41   |
 
 MSRV changes will be accompanied by a minor version bump.
 
