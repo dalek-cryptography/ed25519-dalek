@@ -19,9 +19,10 @@ This crate is `#[no_std]` compatible with `default-features = false`
 | Feature                | Default? | Description |
 | :---                   | :---     | :---        |
 | `std`                  | ✓        | TODO        |
-| `rand`                 | ✓        | TODO        |
+| `rand_core`            |          | TODO        |
 | `alloc`                |          | Enables features that require dynamic heap allocation |
 | `batch`                |          | Batch verification. Requires `alloc` |
+| `digest`               |          | TODO |
 | `pkcs8`                |          | PKCS#8 Support |
 | `asm`                  |          | Assembly implementation of SHA-2 compression functions |
 | `legacy_compatibility` |          | See: A Note on Signature Malleability |
@@ -47,6 +48,8 @@ Documentation is available [here](https://docs.rs/ed25519-dalek).
 
 All on-by-default features of this library are covered by semantic versioning (SemVer)
 
+SemVer exemptions are outlined below for MSRV and public API.
+
 ## Minimum Supported Rust Version
 
 | Releases | MSRV   |
@@ -55,6 +58,16 @@ All on-by-default features of this library are covered by semantic versioning (S
 | 1.x      | 1.41   |
 
 MSRV changes will be accompanied by a minor version bump.
+
+## Public API SemVer Exemptions
+
+Breaking changes to SemVer exempted components affecting the public API will be accompanied by some version bump.
+
+Below are the specific policies:
+
+| Releases | Public API Component(s) | Policy |
+| :---     | :---                    | :---   |
+| 2.x      | Dependencies `digest`, `pkcs8` and `rand_core` | Minor SemVer bump |
 
 ## Safety
 
