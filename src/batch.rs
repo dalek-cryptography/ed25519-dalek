@@ -225,9 +225,7 @@ pub fn verify_batch(
     let message_lengths: Vec<usize> = messages.iter().map(|i| i.len()).collect();
     let scalars: Vec<Scalar> = signatures.iter().map(|i| i.s).collect();
 
-    // Build a PRNG based on a transcript of the H(R || A || M)s seen thus far. This provides
-    // synthethic randomness in the default configuration, and purely deterministic in the case of
-    // compiling with the "batch_deterministic" feature.
+    // Build a PRNG based on a transcript of the H(R || A || M)s seen thus far
     let mut transcript: Transcript = Transcript::new(b"ed25519 batch verification");
 
     transcript.append_scalars(&hrams);
