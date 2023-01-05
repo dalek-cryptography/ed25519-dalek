@@ -18,15 +18,16 @@ This crate is `#[no_std]` compatible with `default-features = false`
 
 | Feature                | Default? | Description |
 | :---                   | :---     | :---        |
-| `std`                  | ✓        | std::error::Error types |
 | `alloc`                | ✓        | Enables features that require dynamic heap allocation |
-| `rand_core`            |          | TODO        |
+| `std`                  | ✓        | std::error::Error types |
+| `zeroize`              | ✓        | Enables `Zeroize` for `SigningKey` |
+| `asm`                  |          | Assembly implementation of SHA-2 compression functions |
 | `batch`                |          | Batch verification. Requires `alloc` |
 | `digest`               |          | TODO |
+| `legacy_compatibility` |          | See: A Note on Signature Malleability |
 | `pkcs8`                |          | PKCS#8 Support |
 | `pem`                  |          | PEM Support |
-| `asm`                  |          | Assembly implementation of SHA-2 compression functions |
-| `legacy_compatibility` |          | See: A Note on Signature Malleability |
+| `rand_core`            |          | TODO        |
 
 # Major Changes
 
