@@ -30,7 +30,14 @@ This crate is `#[no_std]` compatible with `default-features = false`
 
 See [CHANGELOG.md](CHANGELOG.md) for a list of changes made in past version of this crate.
 
-## 2.0.0
+## 2.0.0 Breaking Changes
+
+* Update the MSRV from 1.41 to 1.60
+* `batch` is now `batch_deterministic`
+* Removed `ExpandedSecretKey` API
+* [curve25519-backend selection] is more automatic
+
+[curve25519-backend selection]: https://github.com/dalek-cryptography/curve25519-dalek/#backends
 
 # Documentation
 
