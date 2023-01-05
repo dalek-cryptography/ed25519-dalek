@@ -18,12 +18,13 @@ This crate is `#[no_std]` compatible with `default-features = false`
 
 | Feature                | Default? | Description |
 | :---                   | :---     | :---        |
-| `std`                  | ✓        | TODO        |
+| `std`                  | ✓        | std::error::Error types |
+| `alloc`                | ✓        | Enables features that require dynamic heap allocation |
 | `rand_core`            |          | TODO        |
-| `alloc`                |          | Enables features that require dynamic heap allocation |
 | `batch`                |          | Batch verification. Requires `alloc` |
 | `digest`               |          | TODO |
 | `pkcs8`                |          | PKCS#8 Support |
+| `pem`                  |          | PEM Support |
 | `asm`                  |          | Assembly implementation of SHA-2 compression functions |
 | `legacy_compatibility` |          | See: A Note on Signature Malleability |
 
