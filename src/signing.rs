@@ -13,7 +13,7 @@
 use ed25519::pkcs8::{self, DecodePrivateKey};
 
 #[cfg(feature = "rand")]
-use rand::{CryptoRng, RngCore};
+use rand_core::CryptoRngCore;
 
 #[cfg(feature = "serde")]
 use serde::de::Error as SerdeError;
@@ -32,7 +32,7 @@ use curve25519_dalek::scalar::Scalar;
 
 use ed25519::signature::{KeypairRef, Signer, Verifier};
 
-use zeroize::Zeroize;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::constants::*;
 use crate::errors::*;
@@ -50,7 +50,7 @@ pub type SecretKey = [u8; SECRET_KEY_LENGTH];
 /// ed25519 signing key which can be used to produce signatures.
 // Invariant: `public` is always the public key of `secret`. This prevents the signing function
 // oracle attack described in https://github.com/MystenLabs/ed25519-unsafe-libs
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct SigningKey {
     /// The secret half of this signing key.
     pub(crate) secret_key: SecretKey,
@@ -58,40 +58,36 @@ pub struct SigningKey {
     pub(crate) verifying_key: VerifyingKey,
 }
 
+/// # Example
+///
+/// ```
+/// # extern crate ed25519_dalek;
+/// #
+/// use ed25519_dalek::SigningKey;
+/// use ed25519_dalek::SECRET_KEY_LENGTH;
+/// use ed25519_dalek::SignatureError;
+///
+/// # fn doctest() -> Result<SigningKey, SignatureError> {
+/// let secret_key_bytes: [u8; SECRET_KEY_LENGTH] = [
+///    157, 097, 177, 157, 239, 253, 090, 096,
+///    186, 132, 074, 244, 146, 236, 044, 196,
+///    068, 073, 197, 105, 123, 050, 105, 025,
+///    112, 059, 172, 003, 028, 174, 127, 096, ];
+///
+/// let signing_key: SigningKey = SigningKey::from_bytes(&secret_key_bytes);
+/// assert_eq!(signing_key.to_bytes(), secret_key_bytes);
+///
+/// # Ok(signing_key)
+/// # }
+/// #
+/// # fn main() {
+/// #     let result = doctest();
+/// #     assert!(result.is_ok());
+/// # }
+/// ```
 impl SigningKey {
-    /// Construct a [`SigningKey`] from a slice of bytes.
+    /// Construct a [`SigningKey`] from a [`SecretKey`]
     ///
-    /// # Example
-    ///
-    /// ```
-    /// # extern crate ed25519_dalek;
-    /// #
-    /// use ed25519_dalek::SigningKey;
-    /// use ed25519_dalek::SECRET_KEY_LENGTH;
-    /// use ed25519_dalek::SignatureError;
-    ///
-    /// # fn doctest() -> Result<SigningKey, SignatureError> {
-    /// let secret_key_bytes: [u8; SECRET_KEY_LENGTH] = [
-    ///    157, 097, 177, 157, 239, 253, 090, 096,
-    ///    186, 132, 074, 244, 146, 236, 044, 196,
-    ///    068, 073, 197, 105, 123, 050, 105, 025,
-    ///    112, 059, 172, 003, 028, 174, 127, 096, ];
-    ///
-    /// let signing_key: SigningKey = SigningKey::from_bytes(&secret_key_bytes);
-    /// #
-    /// # Ok(signing_key)
-    /// # }
-    /// #
-    /// # fn main() {
-    /// #     let result = doctest();
-    /// #     assert!(result.is_ok());
-    /// # }
-    /// ```
-    ///
-    /// # Returns
-    ///
-    /// A `Result` whose okay value is an EdDSA `SecretKey` or whose error value
-    /// is an `SignatureError` wrapping the internal error that occurred.
     #[inline]
     pub fn from_bytes(secret_key: &SecretKey) -> Self {
         let verifying_key = VerifyingKey::from(&ExpandedSecretKey::from(secret_key));
@@ -101,7 +97,7 @@ impl SigningKey {
         }
     }
 
-    /// Convert this secret key to a byte array.
+    /// Convert this [`SigningKey`] into a [`SecretKey`]
     #[inline]
     pub fn to_bytes(&self) -> SecretKey {
         self.secret_key
@@ -122,29 +118,18 @@ impl SigningKey {
     /// is an `SignatureError` describing the error that occurred.
     #[inline]
     pub fn from_keypair_bytes(bytes: &[u8; 64]) -> Result<SigningKey, SignatureError> {
-        if bytes.len() != KEYPAIR_LENGTH {
-            return Err(InternalError::BytesLengthError {
-                name: "SigningKey",
-                length: KEYPAIR_LENGTH,
-            }
-            .into());
+        let (secret_key, verifying_key) = bytes.split_at(SECRET_KEY_LENGTH);
+        let signing_key = SigningKey::try_from(secret_key)?;
+        let verifying_key = VerifyingKey::try_from(verifying_key)?;
+
+        if signing_key.verifying_key() != verifying_key {
+            return Err(InternalError::MismatchedKeypair.into());
         }
 
-        let secret_key =
-            SecretKey::try_from(&bytes[..SECRET_KEY_LENGTH]).map_err(|_| SignatureError::new())?;
-        let verifying_key = VerifyingKey::from_bytes(&bytes[SECRET_KEY_LENGTH..])?;
-
-        if verifying_key != VerifyingKey::from(&secret_key) {
-            return Err(InternalError::MismatchedKeypairError.into());
-        }
-
-        Ok(SigningKey {
-            secret_key,
-            verifying_key,
-        })
+        Ok(signing_key)
     }
 
-    /// Convert this signing key to bytes.
+    /// Convert this signing key to a 64-byte keypair.
     ///
     /// # Returns
     ///
@@ -179,7 +164,7 @@ impl SigningKey {
     /// use ed25519_dalek::SigningKey;
     /// use ed25519_dalek::Signature;
     ///
-    /// let mut csprng = OsRng{};
+    /// let mut csprng = OsRng;
     /// let signing_key: SigningKey = SigningKey::generate(&mut csprng);
     ///
     /// # }
@@ -198,10 +183,7 @@ impl SigningKey {
     /// which is available with `use sha2::Sha512` as in the example above.
     /// Other suitable hash functions include Keccak-512 and Blake2b-512.
     #[cfg(feature = "rand")]
-    pub fn generate<R>(csprng: &mut R) -> SigningKey
-    where
-        R: CryptoRng + RngCore,
-    {
+    pub fn generate<R: CryptoRngCore + ?Sized>(csprng: &mut R) -> SigningKey {
         let mut secret = SecretKey::default();
         csprng.fill_bytes(&mut secret);
         Self::from_bytes(&secret)
@@ -311,9 +293,7 @@ impl SigningKey {
     {
         let expanded: ExpandedSecretKey = (&self.secret_key).into(); // xxx thanks i hate this
 
-        expanded
-            .sign_prehashed(prehashed_message, &self.verifying_key, context)
-            .into()
+        expanded.sign_prehashed(prehashed_message, &self.verifying_key, context)
     }
 
     /// Verify a signature on a message with this signing key's public key.
@@ -484,7 +464,7 @@ impl Signer<ed25519::Signature> for SigningKey {
     /// Sign a message with this signing key's secret key.
     fn try_sign(&self, message: &[u8]) -> Result<ed25519::Signature, SignatureError> {
         let expanded: ExpandedSecretKey = (&self.secret_key).into();
-        Ok(expanded.sign(&message, &self.verifying_key).into())
+        Ok(expanded.sign(message, &self.verifying_key))
     }
 }
 
@@ -516,7 +496,7 @@ impl TryFrom<&[u8]> for SigningKey {
         SecretKey::try_from(bytes)
             .map(|bytes| Self::from_bytes(&bytes))
             .map_err(|_| {
-                InternalError::BytesLengthError {
+                InternalError::BytesLength {
                     name: "SecretKey",
                     length: SECRET_KEY_LENGTH,
                 }
@@ -524,6 +504,14 @@ impl TryFrom<&[u8]> for SigningKey {
             })
     }
 }
+
+impl Drop for SigningKey {
+    fn drop(&mut self) {
+        self.secret_key.zeroize();
+    }
+}
+
+impl ZeroizeOnDrop for SigningKey {}
 
 #[cfg(feature = "pkcs8")]
 impl DecodePrivateKey for SigningKey {}
@@ -549,19 +537,19 @@ impl TryFrom<&pkcs8::KeypairBytes> for SigningKey {
     type Error = pkcs8::Error;
 
     fn try_from(pkcs8_key: &pkcs8::KeypairBytes) -> pkcs8::Result<Self> {
-        // Validate the public key in the PKCS#8 document if present
-        if let Some(public_bytes) = pkcs8_key.public_key {
-            let expected_verifying_key = VerifyingKey::from(&pkcs8_key.secret_key);
+        let signing_key = SigningKey::from_bytes(&pkcs8_key.secret_key);
 
-            let pkcs8_verifying_key = VerifyingKey::from_bytes(public_bytes.as_ref())
+        // Validate the public key in the PKCS#8 document if present
+        if let Some(public_bytes) = &pkcs8_key.public_key {
+            let expected_verifying_key = VerifyingKey::from_bytes(public_bytes.as_ref())
                 .map_err(|_| pkcs8::Error::KeyMalformed)?;
 
-            if expected_verifying_key != pkcs8_verifying_key {
+            if signing_key.verifying_key() != expected_verifying_key {
                 return Err(pkcs8::Error::KeyMalformed);
             }
         }
 
-        Ok(SigningKey::from_bytes(&pkcs8_key.secret_key))
+        Ok(signing_key)
     }
 }
 
@@ -706,24 +694,20 @@ impl ExpandedSecretKey {
     #[allow(non_snake_case)]
     pub(crate) fn sign(&self, message: &[u8], verifying_key: &VerifyingKey) -> ed25519::Signature {
         let mut h: Sha512 = Sha512::new();
-        let R: CompressedEdwardsY;
-        let r: Scalar;
-        let s: Scalar;
-        let k: Scalar;
 
-        h.update(&self.nonce);
-        h.update(&message);
+        h.update(self.nonce);
+        h.update(message);
 
-        r = Scalar::from_hash(h);
-        R = (&r * &ED25519_BASEPOINT_TABLE).compress();
+        let r = Scalar::from_hash(h);
+        let R: CompressedEdwardsY = (&r * &ED25519_BASEPOINT_TABLE).compress();
 
         h = Sha512::new();
         h.update(R.as_bytes());
         h.update(verifying_key.as_bytes());
-        h.update(&message);
+        h.update(message);
 
-        k = Scalar::from_hash(h);
-        s = &(&k * &self.key) + &r;
+        let k = Scalar::from_hash(h);
+        let s: Scalar = (k * self.key) + r;
 
         InternalSignature { R, s }.into()
     }
@@ -760,17 +744,11 @@ impl ExpandedSecretKey {
     {
         let mut h: Sha512;
         let mut prehash: [u8; 64] = [0u8; 64];
-        let R: CompressedEdwardsY;
-        let r: Scalar;
-        let s: Scalar;
-        let k: Scalar;
 
         let ctx: &[u8] = context.unwrap_or(b""); // By default, the context is an empty string.
 
         if ctx.len() > 255 {
-            return Err(SignatureError::from(
-                InternalError::PrehashedContextLengthError,
-            ));
+            return Err(SignatureError::from(InternalError::PrehashedContextLength));
         }
 
         let ctx_len: u8 = ctx.len() as u8;
@@ -792,26 +770,26 @@ impl ExpandedSecretKey {
         // still bleeding from malleability, for fuck's sake.
         h = Sha512::new()
             .chain_update(b"SigEd25519 no Ed25519 collisions")
-            .chain_update(&[1]) // Ed25519ph
-            .chain_update(&[ctx_len])
+            .chain_update([1]) // Ed25519ph
+            .chain_update([ctx_len])
             .chain_update(ctx)
-            .chain_update(&self.nonce)
+            .chain_update(self.nonce)
             .chain_update(&prehash[..]);
 
-        r = Scalar::from_hash(h);
-        R = (&r * &ED25519_BASEPOINT_TABLE).compress();
+        let r = Scalar::from_hash(h);
+        let R: CompressedEdwardsY = (&r * &ED25519_BASEPOINT_TABLE).compress();
 
         h = Sha512::new()
             .chain_update(b"SigEd25519 no Ed25519 collisions")
-            .chain_update(&[1]) // Ed25519ph
-            .chain_update(&[ctx_len])
+            .chain_update([1]) // Ed25519ph
+            .chain_update([ctx_len])
             .chain_update(ctx)
             .chain_update(R.as_bytes())
             .chain_update(verifying_key.as_bytes())
             .chain_update(&prehash[..]);
 
-        k = Scalar::from_hash(h);
-        s = &(&k * &self.key) + &r;
+        let k = Scalar::from_hash(h);
+        let s: Scalar = (k * self.key) + r;
 
         Ok(InternalSignature { R, s }.into())
     }
