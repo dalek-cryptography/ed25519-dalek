@@ -14,6 +14,8 @@ use alloc::vec::Vec;
 use core::convert::TryFrom;
 use core::iter::once;
 
+use ed25519::Signature;
+
 use curve25519_dalek::constants;
 use curve25519_dalek::edwards::EdwardsPoint;
 use curve25519_dalek::scalar::Scalar;
@@ -34,7 +36,7 @@ use crate::signature::InternalSignature;
 use crate::VerifyingKey;
 
 trait BatchTranscript {
-    fn append_scalars(&mut self, scalars: &Vec<Scalar>);
+    fn append_bytestrings<I: IntoIterator<Item = B>, B: AsRef<[u8]>>(&mut self, scalars: I);
     fn append_message_lengths(&mut self, message_lengths: &Vec<usize>);
 }
 
@@ -47,10 +49,10 @@ impl BatchTranscript for Transcript {
     /// * All of the `s` components of each signature.
     ///
     /// Each is also prefixed with their index in the vector.
-    fn append_scalars(&mut self, scalars: &Vec<Scalar>) {
-        for (i, scalar) in scalars.iter().enumerate() {
+    fn append_bytestrings<I: IntoIterator<Item = B>, B: AsRef<[u8]>>(&mut self, scalars: I) {
+        for (i, scalar) in scalars.into_iter().enumerate() {
             self.append_u64(b"", i as u64);
-            self.append_message(b"hram", scalar.as_bytes());
+            self.append_message(b"hram", scalar.as_ref());
         }
     }
 
@@ -118,19 +120,6 @@ fn gen_u128<R: RngCore>(rng: &mut R) -> u128 {
 /// * A `Result` whose `Ok` value is an emtpy tuple and whose `Err` value is a
 ///   `SignatureError` containing a description of the internal error which
 ///   occured.
-///
-/// ## On Synthetic Nonces
-///
-/// This library defaults to using what is called "synthetic" nonces, which
-/// means that a mixture of deterministic (per any unique set of inputs to this
-/// function) data and system randomness is used to seed the CSPRNG for nonce
-/// generation.  For more of the background theory on why many cryptographers
-/// currently believe this to be superior to either purely deterministic
-/// generation or purely relying on the system's randomness, see [this section
-/// of the Merlin design](https://merlin.cool/transcript/rng.html) by Henry de
-/// Valence, isis lovecruft, and Oleg Andreev, as well as Trevor Perrin's
-/// [designs for generalised
-/// EdDSA](https://moderncrypto.org/mail-archive/curves/2017/000925.html).
 ///
 /// ## On Deterministic Nonces
 ///
@@ -203,36 +192,48 @@ pub fn verify_batch(
         .into());
     }
 
+    // We immediately build a transcript of everything
+    let mut transcript: Transcript = Transcript::new(b"ed25519 batch verification");
+
+    // We make one optimization in the transcript: since we will end up computing
+    // H(R || A || M) for each (signature, public_key, message) triplet, we will feed _that_ into
+    // our transcript rather than each R, A, M individually. This is secure so long  as SHA512 is
+    // collision-resistant
+    let hrams: Vec<[u8; 64]> = (0..signatures.len())
+        .map(|i| {
+            let mut h: Sha512 = Sha512::default();
+            h.update(signatures[i].r_bytes());
+            h.update(verifying_keys[i].as_bytes());
+            h.update(&messages[i]);
+            h.finalize().try_into().unwrap()
+        })
+        .collect();
+
+    // Collect the scalars and message lengths for hashing
+    let scalar_bytes: Vec<&[u8; 32]> = signatures.iter().map(Signature::s_bytes).collect();
+    let message_lengths: Vec<usize> = messages.iter().map(|i| i.len()).collect();
+
+    // Covers verifying_keys, messages, and the R half of signatures
+    transcript.append_bytestrings(&hrams);
+    // Extra: covers the length of messages. Strictly speaking this isn't necessary. There is no M'
+    // such that H(R || A || M') == H(R || A || M).
+    transcript.append_message_lengths(&message_lengths);
+    // Covers the s half of the signatures
+    transcript.append_bytestrings(&scalar_bytes);
+
+    // Finalize the transcript
+    let mut rng = transcript.build_rng().finalize(&mut ZeroRng);
+
     // Convert all signatures to `InternalSignature`
     let signatures = signatures
         .iter()
         .map(InternalSignature::try_from)
         .collect::<Result<Vec<_>, _>>()?;
-
-    // Compute H(R || A || M) for each (signature, public_key, message) triplet
-    let hrams: Vec<Scalar> = (0..signatures.len())
-        .map(|i| {
-            let mut h: Sha512 = Sha512::default();
-            h.update(signatures[i].R.as_bytes());
-            h.update(verifying_keys[i].as_bytes());
-            h.update(&messages[i]);
-            Scalar::from_hash(h)
-        })
+    // Convert the H(R || A || M) values into scalars
+    let hrams: Vec<Scalar> = hrams
+        .iter()
+        .map(Scalar::from_bytes_mod_order_wide)
         .collect();
-
-    // Collect the message lengths and the scalar portions of the signatures, and add them into the
-    // transcript.
-    let message_lengths: Vec<usize> = messages.iter().map(|i| i.len()).collect();
-    let scalars: Vec<Scalar> = signatures.iter().map(|i| i.s).collect();
-
-    // Build a PRNG based on a transcript of the H(R || A || M)s seen thus far
-    let mut transcript: Transcript = Transcript::new(b"ed25519 batch verification");
-
-    transcript.append_scalars(&hrams);
-    transcript.append_message_lengths(&message_lengths);
-    transcript.append_scalars(&scalars);
-
-    let mut rng = transcript.build_rng().finalize(&mut ZeroRng);
 
     // Select a random 128-bit scalar for each signature.
     let zs: Vec<Scalar> = signatures
