@@ -14,8 +14,6 @@ use alloc::vec::Vec;
 use core::convert::TryFrom;
 use core::iter::once;
 
-use ed25519::Signature;
-
 use curve25519_dalek::constants;
 use curve25519_dalek::edwards::EdwardsPoint;
 use curve25519_dalek::scalar::Scalar;
@@ -34,40 +32,6 @@ use crate::errors::InternalError;
 use crate::errors::SignatureError;
 use crate::signature::InternalSignature;
 use crate::VerifyingKey;
-
-trait BatchTranscript {
-    fn append_bytestrings<I: IntoIterator<Item = B>, B: AsRef<[u8]>>(&mut self, scalars: I);
-    fn append_message_lengths(&mut self, message_lengths: &Vec<usize>);
-}
-
-impl BatchTranscript for Transcript {
-    /// Append some `scalars` to this batch verification sigma protocol transcript.
-    ///
-    /// For ed25519 batch verification, we include the following as scalars:
-    ///
-    /// * All of the computed `H(R||A||M)`s to the protocol transcript, and
-    /// * All of the `s` components of each signature.
-    ///
-    /// Each is also prefixed with their index in the vector.
-    fn append_bytestrings<I: IntoIterator<Item = B>, B: AsRef<[u8]>>(&mut self, scalars: I) {
-        for (i, scalar) in scalars.into_iter().enumerate() {
-            self.append_u64(b"", i as u64);
-            self.append_message(b"hram", scalar.as_ref());
-        }
-    }
-
-    /// Append the lengths of the messages into the transcript.
-    ///
-    /// This is done out of an (potential over-)abundance of caution, to guard against the unlikely
-    /// event of collisions.  However, a nicer way to do this would be to append the message length
-    /// before the message, but this is messy w.r.t. the calculations of the `H(R||A||M)`s above.
-    fn append_message_lengths(&mut self, message_lengths: &Vec<usize>) {
-        for (i, len) in message_lengths.iter().enumerate() {
-            self.append_u64(b"", i as u64);
-            self.append_u64(b"mlen", *len as u64);
-        }
-    }
-}
 
 /// An implementation of `rand_core::RngCore` which does nothing, to provide purely deterministic
 /// transcript-based nonces, rather than synthetically random nonces.
@@ -197,8 +161,8 @@ pub fn verify_batch(
 
     // We make one optimization in the transcript: since we will end up computing
     // H(R || A || M) for each (signature, public_key, message) triplet, we will feed _that_ into
-    // our transcript rather than each R, A, M individually. This is secure so long  as SHA512 is
-    // collision-resistant
+    // our transcript rather than each R, A, M individually. This is secure so long as SHA512 is
+    // collision-resistant.
     let hrams: Vec<[u8; 64]> = (0..signatures.len())
         .map(|i| {
             let mut h: Sha512 = Sha512::default();
@@ -209,17 +173,14 @@ pub fn verify_batch(
         })
         .collect();
 
-    // Collect the scalars and message lengths for hashing
-    let scalar_bytes: Vec<&[u8; 32]> = signatures.iter().map(Signature::s_bytes).collect();
-    let message_lengths: Vec<usize> = messages.iter().map(|i| i.len()).collect();
-
     // Covers verifying_keys, messages, and the R half of signatures
-    transcript.append_bytestrings(&hrams);
-    // Extra: covers the length of messages. Strictly speaking this isn't necessary. There is no M'
-    // such that H(R || A || M') == H(R || A || M).
-    transcript.append_message_lengths(&message_lengths);
+    for hram in hrams.iter() {
+        transcript.append_message(b"hram", hram);
+    }
     // Covers the s half of the signatures
-    transcript.append_bytestrings(&scalar_bytes);
+    for sig in signatures {
+        transcript.append_message(b"sig.s", sig.s_bytes());
+    }
 
     // Finalize the transcript
     let mut rng = transcript.build_rng().finalize(&mut ZeroRng);
