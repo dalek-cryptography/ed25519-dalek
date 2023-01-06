@@ -163,6 +163,10 @@ pub fn verify_batch(
     // H(R || A || M) for each (signature, public_key, message) triplet, we will feed _that_ into
     // our transcript rather than each R, A, M individually. This is secure so long as SHA512 is
     // collision-resistant.
+    // It suffices to take `verifying_keys[i].as_bytes()` even though a `VerifyingKey` has two
+    // fields, and `as_bytes()` only returns the bytes of the first. This is because of our
+    // invariant on `VerifyingKey`, which is that the second field is always the (unique)
+    // decompression of the first. Thus, if one field changes, they both change.
     let hrams: Vec<[u8; 64]> = (0..signatures.len())
         .map(|i| {
             let mut h: Sha512 = Sha512::default();
