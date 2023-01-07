@@ -13,7 +13,7 @@
 use ed25519::pkcs8::{self, DecodePrivateKey};
 
 #[cfg(feature = "rand")]
-use rand::{CryptoRng, RngCore};
+use rand_core::CryptoRngCore;
 
 #[cfg(feature = "serde")]
 use serde::de::Error as SerdeError;
@@ -50,7 +50,7 @@ pub type SecretKey = [u8; SECRET_KEY_LENGTH];
 /// ed25519 signing key which can be used to produce signatures.
 // Invariant: `public` is always the public key of `secret`. This prevents the signing function
 // oracle attack described in https://github.com/MystenLabs/ed25519-unsafe-libs
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct SigningKey {
     /// The secret half of this signing key.
     pub(crate) secret_key: SecretKey,
@@ -118,22 +118,18 @@ impl SigningKey {
     /// is an `SignatureError` describing the error that occurred.
     #[inline]
     pub fn from_keypair_bytes(bytes: &[u8; 64]) -> Result<SigningKey, SignatureError> {
-        // TODO: Use bytes.split_array_ref once it’s in MSRV.
         let (secret_key, verifying_key) = bytes.split_at(SECRET_KEY_LENGTH);
-        let secret_key = secret_key.try_into().unwrap();
-        let verifying_key = VerifyingKey::from_bytes(verifying_key.try_into().unwrap())?;
+        let signing_key = SigningKey::try_from(secret_key)?;
+        let verifying_key = VerifyingKey::try_from(verifying_key)?;
 
-        if verifying_key != VerifyingKey::from(&secret_key) {
+        if signing_key.verifying_key() != verifying_key {
             return Err(InternalError::MismatchedKeypair.into());
         }
 
-        Ok(SigningKey {
-            secret_key,
-            verifying_key,
-        })
+        Ok(signing_key)
     }
 
-    /// Convert this signing key to bytes.
+    /// Convert this signing key to a 64-byte keypair.
     ///
     /// # Returns
     ///
@@ -168,7 +164,7 @@ impl SigningKey {
     /// use ed25519_dalek::SigningKey;
     /// use ed25519_dalek::Signature;
     ///
-    /// let mut csprng = OsRng{};
+    /// let mut csprng = OsRng;
     /// let signing_key: SigningKey = SigningKey::generate(&mut csprng);
     ///
     /// # }
@@ -187,10 +183,7 @@ impl SigningKey {
     /// which is available with `use sha2::Sha512` as in the example above.
     /// Other suitable hash functions include Keccak-512 and Blake2b-512.
     #[cfg(feature = "rand")]
-    pub fn generate<R>(csprng: &mut R) -> SigningKey
-    where
-        R: CryptoRng + RngCore,
-    {
+    pub fn generate<R: CryptoRngCore + ?Sized>(csprng: &mut R) -> SigningKey {
         let mut secret = SecretKey::default();
         csprng.fill_bytes(&mut secret);
         Self::from_bytes(&secret)
@@ -544,19 +537,19 @@ impl TryFrom<&pkcs8::KeypairBytes> for SigningKey {
     type Error = pkcs8::Error;
 
     fn try_from(pkcs8_key: &pkcs8::KeypairBytes) -> pkcs8::Result<Self> {
-        // Validate the public key in the PKCS#8 document if present
-        if let Some(public_bytes) = pkcs8_key.public_key {
-            let expected_verifying_key = VerifyingKey::from(&pkcs8_key.secret_key);
+        let signing_key = SigningKey::from_bytes(&pkcs8_key.secret_key);
 
-            let pkcs8_verifying_key = VerifyingKey::from_bytes(public_bytes.as_ref())
+        // Validate the public key in the PKCS#8 document if present
+        if let Some(public_bytes) = &pkcs8_key.public_key {
+            let expected_verifying_key = VerifyingKey::from_bytes(public_bytes.as_ref())
                 .map_err(|_| pkcs8::Error::KeyMalformed)?;
 
-            if expected_verifying_key != pkcs8_verifying_key {
+            if signing_key.verifying_key() != expected_verifying_key {
                 return Err(pkcs8::Error::KeyMalformed);
             }
         }
 
-        Ok(SigningKey::from_bytes(&pkcs8_key.secret_key))
+        Ok(signing_key)
     }
 }
 
