@@ -88,6 +88,13 @@ mod vectors {
                 "Signature verification failed on line {}",
                 lineno
             );
+            assert!(
+                expected_verifying_key
+                    .verify_strict(&msg_bytes, &sig2)
+                    .is_ok(),
+                "Signature strict verification failed on line {}",
+                lineno
+            );
         }
     }
 
@@ -123,11 +130,21 @@ mod vectors {
         );
         assert!(
             signing_key
-                .verify_prehashed(prehash_for_verifying, None, &sig2)
+                .verify_prehashed(prehash_for_verifying.clone(), None, &sig2)
                 .is_ok(),
             "Could not verify ed25519ph signature!"
         );
+        assert!(
+            expected_verifying_key
+                .verify_prehashed_strict(prehash_for_verifying, None, &sig2)
+                .is_ok(),
+            "Could not strict-verify ed25519ph signature!"
+        );
     }
+
+    //
+    // The remaining items in this mod are for the repudiation tests
+    //
 
     // Taken from curve25519_dalek::constants::EIGHT_TORSION[4]
     const EIGHT_TORSION_4: [u8; 32] = [
@@ -282,6 +299,7 @@ mod integrations {
         let mut csprng = OsRng;
 
         signing_key = SigningKey::generate(&mut csprng);
+        let verifying_key = signing_key.verifying_key();
         good_sig = signing_key.sign(&good);
         bad_sig = signing_key.sign(&bad);
 
@@ -290,12 +308,24 @@ mod integrations {
             "Verification of a valid signature failed!"
         );
         assert!(
+            verifying_key.verify_strict(&good, &good_sig).is_ok(),
+            "Strict verification of a valid signature failed!"
+        );
+        assert!(
             signing_key.verify(&good, &bad_sig).is_err(),
             "Verification of a signature on a different message passed!"
         );
         assert!(
+            verifying_key.verify_strict(&good, &bad_sig).is_err(),
+            "Strict verification of a signature on a different message passed!"
+        );
+        assert!(
             signing_key.verify(&bad, &good_sig).is_err(),
             "Verification of a signature on a different message passed!"
+        );
+        assert!(
+            verifying_key.verify_strict(&bad, &good_sig).is_err(),
+            "Strict verification of a signature on a different message passed!"
         );
     }
 
@@ -326,6 +356,7 @@ mod integrations {
         let context: &[u8] = b"testing testing 1 2 3";
 
         signing_key = SigningKey::generate(&mut csprng);
+        let verifying_key = signing_key.verifying_key();
         good_sig = signing_key
             .sign_prehashed(prehashed_good1, Some(context))
             .unwrap();
@@ -335,21 +366,39 @@ mod integrations {
 
         assert!(
             signing_key
-                .verify_prehashed(prehashed_good2, Some(context), &good_sig)
+                .verify_prehashed(prehashed_good2.clone(), Some(context), &good_sig)
                 .is_ok(),
             "Verification of a valid signature failed!"
         );
         assert!(
+            verifying_key
+                .verify_prehashed_strict(prehashed_good2, Some(context), &good_sig)
+                .is_ok(),
+            "Strict verification of a valid signature failed!"
+        );
+        assert!(
             signing_key
-                .verify_prehashed(prehashed_good3, Some(context), &bad_sig)
+                .verify_prehashed(prehashed_good3.clone(), Some(context), &bad_sig)
                 .is_err(),
             "Verification of a signature on a different message passed!"
         );
         assert!(
+            verifying_key
+                .verify_prehashed_strict(prehashed_good3, Some(context), &bad_sig)
+                .is_err(),
+            "Strict verification of a signature on a different message passed!"
+        );
+        assert!(
             signing_key
-                .verify_prehashed(prehashed_bad2, Some(context), &good_sig)
+                .verify_prehashed(prehashed_bad2.clone(), Some(context), &good_sig)
                 .is_err(),
             "Verification of a signature on a different message passed!"
+        );
+        assert!(
+            verifying_key
+                .verify_prehashed_strict(prehashed_bad2, Some(context), &good_sig)
+                .is_err(),
+            "Strict verification of a signature on a different message passed!"
         );
     }
 
