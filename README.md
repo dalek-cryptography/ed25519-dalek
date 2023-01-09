@@ -170,7 +170,7 @@ transactions.
 The scalar component of a signature is not the only source of signature
 malleability, however.  Both the public key used for signature verification and
 the group element component of the signature are malleable, as they may contain
-a small torsion component as a consquence of the curve25519 group not being of
+a small torsion component as a consequence of the curve25519 group not being of
 prime order, but having a small cofactor of 8.
 
 If you wish to also eliminate this source of signature malleability, please
@@ -208,7 +208,7 @@ In the default mode, we do as above in the fully deterministic mode, but we
 ratchet the underlying keccak-f1600 function (used for the provided
 transcript-based PRNG) forward additionally based on some system-/chip- provided
 randomness.  This provides _synthetic randomness_, that is, randomness based on
-both deterministic and undeterinistic data.  The reason for doing this is to
+both deterministic and undeterministic data.  The reason for doing this is to
 prevent badly seeded system RNGs from ruining the security of the signature
 verification scheme.
 
