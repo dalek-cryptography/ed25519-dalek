@@ -48,6 +48,7 @@ toml = { version = "0.5" }
 [[bench]]
 name = "ed25519_benchmarks"
 harness = false
+required-features = ["rand_core"]
 
 [features]
 default = ["std"]
