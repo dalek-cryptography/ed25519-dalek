@@ -32,7 +32,7 @@ rand_core = { version = "0.6.4", default-features = false, optional = true }
 serde = { version = "1.0", default-features = false, optional = true }
 serde_bytes = { version = "0.11", optional = true }
 sha2 = { version = "0.10", default-features = false }
-zeroize = { version = "1.5", default-features = false }
+zeroize = { version = "1.5", default-features = false, optional = true }
 
 [dev-dependencies]
 hex = "0.4"
@@ -50,8 +50,8 @@ name = "ed25519_benchmarks"
 harness = false
 
 [features]
-default = ["std", "rand"]
-alloc = ["curve25519-dalek/alloc", "ed25519/alloc", "rand?/alloc", "serde?/alloc", "zeroize/alloc"]
+default = ["std", "rand", "zeroize"]
+alloc = ["curve25519-dalek/alloc", "ed25519/alloc", "rand?/alloc", "serde?/alloc", "zeroize?/alloc"]
 std = ["alloc", "ed25519/std", "rand?/std", "serde?/std", "sha2/std"]
 
 asm = ["sha2/asm"]
