@@ -32,6 +32,7 @@ use curve25519_dalek::scalar::Scalar;
 
 use ed25519::signature::{KeypairRef, Signer, Verifier};
 
+#[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::constants::*;
@@ -512,12 +513,14 @@ impl TryFrom<&[u8]> for SigningKey {
     }
 }
 
+#[cfg(feature = "zeroize")]
 impl Drop for SigningKey {
     fn drop(&mut self) {
         self.secret_key.zeroize();
     }
 }
 
+#[cfg(feature = "zeroize")]
 impl ZeroizeOnDrop for SigningKey {}
 
 #[cfg(feature = "pkcs8")]
@@ -650,6 +653,7 @@ pub(crate) struct ExpandedSecretKey {
     pub(crate) nonce: [u8; 32],
 }
 
+#[cfg(feature = "zeroize")]
 impl Drop for ExpandedSecretKey {
     fn drop(&mut self) {
         self.key.zeroize();
@@ -658,21 +662,6 @@ impl Drop for ExpandedSecretKey {
 }
 
 impl From<&SecretKey> for ExpandedSecretKey {
-    /// Construct an `ExpandedSecretKey` from a `SecretKey`.
-    ///
-    /// # Examples
-    ///
-    /// ```ignore
-    /// # fn main() {
-    /// #
-    /// use rand::rngs::OsRng;
-    /// use ed25519_dalek::{SecretKey, ExpandedSecretKey};
-    ///
-    /// let mut csprng = OsRng{};
-    /// let secret_key: SecretKey = SecretKey::generate(&mut csprng);
-    /// let expanded_secret_key: ExpandedSecretKey = ExpandedSecretKey::from(&secret_key);
-    /// # }
-    /// ```
     fn from(secret_key: &SecretKey) -> ExpandedSecretKey {
         let mut h: Sha512 = Sha512::default();
         let mut hash: [u8; 64] = [0u8; 64];

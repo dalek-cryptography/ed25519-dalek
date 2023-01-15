@@ -245,7 +245,7 @@
 #![cfg_attr(docsrs, feature(doc_auto_cfg, doc_cfg, doc_cfg_hide))]
 #![cfg_attr(docsrs, doc(cfg_hide(docsrs)))]
 
-#[cfg(any(feature = "batch", feature = "batch_deterministic"))]
+#[cfg(feature = "batch")]
 extern crate alloc;
 
 #[cfg(any(feature = "std", test))]
@@ -254,7 +254,7 @@ extern crate std;
 
 pub use ed25519;
 
-#[cfg(any(feature = "batch", feature = "batch_deterministic"))]
+#[cfg(feature = "batch")]
 mod batch;
 mod constants;
 mod errors;
@@ -264,7 +264,7 @@ mod verifying;
 
 pub use curve25519_dalek::digest::Digest;
 
-#[cfg(any(feature = "batch", feature = "batch_deterministic"))]
+#[cfg(feature = "batch")]
 pub use crate::batch::*;
 pub use crate::constants::*;
 pub use crate::errors::*;
