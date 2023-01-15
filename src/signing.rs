@@ -154,6 +154,7 @@ impl SigningKey {
     }
 
     #[cfg(any(test, feature = "rand_core"))]
+    #[cfg_attr(docsrs, doc(cfg(feature = "rand_core")))]
     /// Generate an ed25519 signing key.
     ///
     /// # Example
@@ -184,10 +185,6 @@ impl SigningKey {
     /// The standard hash function used for most ed25519 libraries is SHA-512,
     /// which is available with `use sha2::Sha512` as in the example above.
     /// Other suitable hash functions include Keccak-512 and Blake2b-512.
-    ///
-    /// # Features
-    ///
-    /// Requires optional feature `rand_core` activated
     pub fn generate<R: CryptoRngCore + ?Sized>(csprng: &mut R) -> SigningKey {
         let mut secret = SecretKey::default();
         csprng.fill_bytes(&mut secret);
