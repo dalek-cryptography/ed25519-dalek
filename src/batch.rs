@@ -33,8 +33,9 @@ use crate::errors::SignatureError;
 use crate::signature::InternalSignature;
 use crate::VerifyingKey;
 
-/// An implementation of `rand_core::RngCore` which does nothing, to provide purely deterministic
-/// transcript-based nonces, rather than synthetically random nonces.
+/// An implementation of `rand_core::RngCore` which does nothing. This is necessary because merlin
+/// demands an `Rng` as input to `TranscriptRngBuilder::finalize()`. Using this with `finalize()`
+/// yields a PRG whose input is the hashed transcript.
 struct ZeroRng;
 
 impl rand_core::RngCore for ZeroRng {
@@ -62,13 +63,14 @@ impl rand_core::RngCore for ZeroRng {
     }
 }
 
+// `TranscriptRngBuilder::finalize()` requires a `CryptoRng`
 impl rand_core::CryptoRng for ZeroRng {}
 
 // We write our own gen() function so we don't need to pull in the rand crate
 fn gen_u128<R: RngCore>(rng: &mut R) -> u128 {
     let mut buf = [0u8; 16];
     rng.fill_bytes(&mut buf);
-    u128::from_ne_bytes(buf)
+    u128::from_le_bytes(buf)
 }
 
 /// Verify a batch of `signatures` on `messages` with their respective `verifying_keys`.
@@ -95,13 +97,10 @@ fn gen_u128<R: RngCore>(rng: &mut R) -> u128 {
 /// attacks where an adversary alters publics in an algebraic manner that
 /// manages to satisfy the equations for the protocol in question.
 ///
-/// For ed25519 batch verification (both with synthetic and deterministic nonce
-/// generation), we include the following as scalars in the protocol transcript:
+/// For ed25519 batch verification we include the following as scalars in the protocol transcript:
 ///
 /// * All of the computed `H(R||A||M)`s to the protocol transcript, and
 /// * All of the `s` components of each signature.
-///
-/// Each is also prefixed with their index in the vector.
 ///
 /// The former, while not quite as elegant as adding the `R`s, `A`s, and
 /// `M`s separately, saves us a bit of context hashing since the
@@ -156,19 +155,24 @@ pub fn verify_batch(
         .into());
     }
 
-    // We immediately build a transcript of everything
+    // Make a transcript which logs all inputs to this function
     let mut transcript: Transcript = Transcript::new(b"ed25519 batch verification");
 
-    // We make one optimization in the transcript: since we will end up computing
-    // H(R || A || M) for each (signature, public_key, message) triplet, we will feed _that_ into
-    // our transcript rather than each R, A, M individually. This is secure so long as SHA512 is
-    // collision-resistant.
+    // We make one optimization in the transcript: since we will end up computing H(R || A || M)
+    // for each (R, A, M) triplet, we will feed _that_ into our transcript rather than each R, A, M
+    // individually. Since R and A are fixed-length, this modification is secure so long as SHA-512
+    // is collision-resistant.
     // It suffices to take `verifying_keys[i].as_bytes()` even though a `VerifyingKey` has two
-    // fields, and `as_bytes()` only returns the bytes of the first. This is because of our
-    // invariant on `VerifyingKey`, which is that the second field is always the (unique)
-    // decompression of the first. Thus, if one field changes, they both change.
+    // fields, and `as_bytes()` only returns the bytes of the first. This is because of an
+    // invariant guaranteed by `VerifyingKey`: the second field is always the (unique)
+    // decompression of the first. Thus, the serialized first field is a unique representation of
+    // the entire `VerifyingKey`.
     let hrams: Vec<[u8; 64]> = (0..signatures.len())
         .map(|i| {
+            // Compute H(R || A || M), where
+            // R = sig.R
+            // A = verifying key
+            // M = msg
             let mut h: Sha512 = Sha512::default();
             h.update(signatures[i].r_bytes());
             h.update(verifying_keys[i].as_bytes());
@@ -177,16 +181,18 @@ pub fn verify_batch(
         })
         .collect();
 
-    // Covers verifying_keys, messages, and the R half of signatures
+    // Update transcript with the hashes above. This covers verifying_keys, messages, and the R
+    // half of signatures
     for hram in hrams.iter() {
         transcript.append_message(b"hram", hram);
     }
-    // Covers the s half of the signatures
+    // Update transcript with the rest of the data. This covers the s half of the signatures
     for sig in signatures {
         transcript.append_message(b"sig.s", sig.s_bytes());
     }
 
-    // Finalize the transcript
+    // All function inputs have now been hashed into the transcript. Finalize it and use it as
+    // randomness for the batch verification.
     let mut rng = transcript.build_rng().finalize(&mut ZeroRng);
 
     // Convert all signatures to `InternalSignature`
