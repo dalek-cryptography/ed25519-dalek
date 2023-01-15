@@ -11,6 +11,7 @@
 
 use core::convert::TryFrom;
 use core::fmt::Debug;
+use core::hash::{Hash, Hasher};
 
 use curve25519_dalek::digest::generic_array::typenum::U64;
 use curve25519_dalek::digest::Digest;
@@ -39,7 +40,7 @@ use crate::signing::*;
 
 /// An ed25519 public key.
 // Invariant: VerifyingKey.1 is always the decompression of VerifyingKey.0
-#[derive(Copy, Clone, Default, Eq, PartialEq)]
+#[derive(Copy, Clone, Default, Eq)]
 pub struct VerifyingKey(pub(crate) CompressedEdwardsY, pub(crate) EdwardsPoint);
 
 impl Debug for VerifyingKey {
@@ -51,6 +52,18 @@ impl Debug for VerifyingKey {
 impl AsRef<[u8]> for VerifyingKey {
     fn as_ref(&self) -> &[u8] {
         self.as_bytes()
+    }
+}
+
+impl Hash for VerifyingKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.as_bytes().hash(state);
+    }
+}
+
+impl PartialEq<VerifyingKey> for VerifyingKey {
+    fn eq(&self, other: &VerifyingKey) -> bool {
+        self.as_bytes() == other.as_bytes()
     }
 }
 
