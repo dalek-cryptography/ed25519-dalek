@@ -144,7 +144,8 @@ impl VerifyingKey {
         VerifyingKey(compressed, point)
     }
 
-    // A helper function that computes H(R || A || M) as well as its prehashed version
+    // A helper function that computes H(R || A || M). If `context.is_some()`, this does the
+    // prehashed variant of the computation using its contents.
     #[allow(non_snake_case)]
     fn compute_challenge(
         context: Option<&[u8]>,
@@ -164,6 +165,22 @@ impl VerifyingKey {
         h.update(M);
 
         Scalar::from_hash(h)
+    }
+
+    // Helper function for verification. Computes the _expected_ R component of the signature. The
+    // caller compares this to the real R component.  If `context.is_some()`, this does the
+    // prehashed variant of the computation using its contents.
+    #[allow(non_snake_case)]
+    fn recompute_r(
+        &self,
+        context: Option<&[u8]>,
+        signature: &InternalSignature,
+        M: &[u8],
+    ) -> EdwardsPoint {
+        let k = Self::compute_challenge(context, &signature.R, &self.0, M);
+        let minus_A: EdwardsPoint = -self.1;
+        // Recall the (non-batched) verification equation: -[k]A + [s]B = R
+        EdwardsPoint::vartime_double_scalar_mul_basepoint(&k, &(minus_A), &signature.s)
     }
 
     /// Verify a `signature` on a `prehashed_message` using the Ed25519ph algorithm.
@@ -202,17 +219,10 @@ impl VerifyingKey {
             "The context must not be longer than 255 octets."
         );
 
-        let minus_A: EdwardsPoint = -self.1;
-        let k = Self::compute_challenge(
-            Some(ctx),
-            &signature.R,
-            &self.0,
-            prehashed_message.finalize().as_slice(),
-        );
-        let R: EdwardsPoint =
-            EdwardsPoint::vartime_double_scalar_mul_basepoint(&k, &(minus_A), &signature.s);
+        let message = prehashed_message.finalize();
+        let expected_R = self.recompute_r(Some(ctx), &signature, &message);
 
-        if R.compress() == signature.R {
+        if expected_R.compress() == signature.R {
             Ok(())
         } else {
             Err(InternalError::Verify.into())
@@ -299,12 +309,8 @@ impl VerifyingKey {
             return Err(InternalError::Verify.into());
         }
 
-        let minus_A: EdwardsPoint = -self.1;
-        let k = Self::compute_challenge(None, &signature.R, &self.0, message);
-        let R: EdwardsPoint =
-            EdwardsPoint::vartime_double_scalar_mul_basepoint(&k, &(minus_A), &signature.s);
-
-        if R == signature_R {
+        let expected_R = self.recompute_r(None, &signature, message);
+        if expected_R == signature_R {
             Ok(())
         } else {
             Err(InternalError::Verify.into())
@@ -356,16 +362,10 @@ impl VerifyingKey {
             return Err(InternalError::Verify.into());
         }
 
-        let minus_A: EdwardsPoint = -self.1;
-        let k = Self::compute_challenge(
-            Some(ctx),
-            &signature.R,
-            &self.0,
-            prehashed_message.finalize().as_slice(),
-        );
-        let R = EdwardsPoint::vartime_double_scalar_mul_basepoint(&k, &(minus_A), &signature.s);
+        let message = prehashed_message.finalize();
+        let expected_R = self.recompute_r(Some(ctx), &signature, &message);
 
-        if R == signature_R {
+        if expected_R == signature_R {
             Ok(())
         } else {
             Err(InternalError::Verify.into())
@@ -383,12 +383,8 @@ impl Verifier<ed25519::Signature> for VerifyingKey {
     fn verify(&self, message: &[u8], signature: &ed25519::Signature) -> Result<(), SignatureError> {
         let signature = InternalSignature::try_from(signature)?;
 
-        let minus_A: EdwardsPoint = -self.1;
-        let k = Self::compute_challenge(None, &signature.R, &self.0, message);
-        let R: EdwardsPoint =
-            EdwardsPoint::vartime_double_scalar_mul_basepoint(&k, &(minus_A), &signature.s);
-
-        if R.compress() == signature.R {
+        let expected_R = self.recompute_r(None, &signature, message);
+        if expected_R.compress() == signature.R {
             Ok(())
         } else {
             Err(InternalError::Verify.into())
