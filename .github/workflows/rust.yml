@@ -35,9 +35,10 @@ jobs:
       - run: cargo test --target ${{ matrix.target }} --no-default-features --features alloc,fast,rand_core --lib --tests
       - run: cargo test --target ${{ matrix.target }}
       - run: cargo test --target ${{ matrix.target }} --features batch
-      - run: cargo test --target ${{ matrix.target }} --features "digest rand_core"
+      - run: cargo test --target ${{ matrix.target }} --features digest,rand_core
       - run: cargo test --target ${{ matrix.target }} --features serde
       - run: cargo test --target ${{ matrix.target }} --features pem
+      - run: cargo test --target ${{ matrix.target }} --all-features
 
   build-simd:
     name: Test simd backend (nightly)
