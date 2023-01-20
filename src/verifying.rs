@@ -11,7 +11,9 @@
 
 use core::convert::TryFrom;
 use core::fmt::Debug;
+use core::hash::{Hash, Hasher};
 
+#[cfg(feature = "digest")]
 use curve25519_dalek::digest::generic_array::typenum::U64;
 use curve25519_dalek::digest::Digest;
 use curve25519_dalek::edwards::CompressedEdwardsY;
@@ -20,7 +22,7 @@ use curve25519_dalek::scalar::Scalar;
 
 use ed25519::signature::Verifier;
 
-pub use sha2::Sha512;
+use sha2::Sha512;
 
 #[cfg(feature = "pkcs8")]
 use ed25519::pkcs8::{self, DecodePublicKey};
@@ -38,8 +40,19 @@ use crate::signature::*;
 use crate::signing::*;
 
 /// An ed25519 public key.
+///
+/// # Note
+///
+/// The `Eq` and `Hash` impls here use the compressed Edwards y encoding, _not_ the algebraic
+/// representation. This means if this `VerifyingKey` is non-canonically encoded, it will be
+/// considered unequal to the other equivalent encoding, despite the two representing the same
+/// point. More encoding details can be found
+/// [here](https://hdevalence.ca/blog/2020-10-04-its-25519am).
+///
+/// If you don't care and/or don't want to deal with this, just make sure to use the
+/// [`VerifyingKey::verify_strict`] function.
 // Invariant: VerifyingKey.1 is always the decompression of VerifyingKey.0
-#[derive(Copy, Clone, Default, Eq, PartialEq)]
+#[derive(Copy, Clone, Default, Eq)]
 pub struct VerifyingKey(pub(crate) CompressedEdwardsY, pub(crate) EdwardsPoint);
 
 impl Debug for VerifyingKey {
@@ -51,6 +64,18 @@ impl Debug for VerifyingKey {
 impl AsRef<[u8]> for VerifyingKey {
     fn as_ref(&self) -> &[u8] {
         self.as_bytes()
+    }
+}
+
+impl Hash for VerifyingKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.as_bytes().hash(state);
+    }
+}
+
+impl PartialEq<VerifyingKey> for VerifyingKey {
+    fn eq(&self, other: &VerifyingKey) -> bool {
+        self.as_bytes() == other.as_bytes()
     }
 }
 
@@ -114,7 +139,7 @@ impl VerifyingKey {
     /// # Returns
     ///
     /// A `Result` whose okay value is an EdDSA `VerifyingKey` or whose error value
-    /// is an `SignatureError` describing the error that occurred.
+    /// is a `SignatureError` describing the error that occurred.
     #[inline]
     pub fn from_bytes(bytes: &[u8; PUBLIC_KEY_LENGTH]) -> Result<VerifyingKey, SignatureError> {
         let compressed = CompressedEdwardsY(*bytes);
@@ -193,14 +218,13 @@ impl VerifyingKey {
     /// * `context` is an optional context string, up to 255 bytes inclusive,
     ///   which may be used to provide additional domain separation.  If not
     ///   set, this will default to an empty string.
-    /// * `signature` is a purported Ed25519ph [`Signature`] on the `prehashed_message`.
+    /// * `signature` is a purported Ed25519ph signature on the `prehashed_message`.
     ///
     /// # Returns
     ///
     /// Returns `true` if the `signature` was a valid signature created by this
     /// `Keypair` on the `prehashed_message`.
-    ///
-    /// [rfc8032]: https://tools.ietf.org/html/rfc8032#section-5.1
+    #[cfg(feature = "digest")]
     #[allow(non_snake_case)]
     pub fn verify_prehashed<D>(
         &self,
@@ -239,7 +263,7 @@ impl VerifyingKey {
     /// 1. Scalar Malleability
     ///
     /// The authors of the RFC explicitly stated that verification of an ed25519
-    /// signature must fail if the scalar `s` is not properly reduced mod \ell:
+    /// signature must fail if the scalar `s` is not properly reduced mod $\ell$:
     ///
     /// > To verify a signature on a message M using public key A, with F
     /// > being 0 for Ed25519ctx, 1 for Ed25519ph, and if Ed25519ctx or
@@ -328,12 +352,13 @@ impl VerifyingKey {
     /// * `context` is an optional context string, up to 255 bytes inclusive,
     ///   which may be used to provide additional domain separation.  If not
     ///   set, this will default to an empty string.
-    /// * `signature` is a purported Ed25519ph [`Signature`] on the `prehashed_message`.
+    /// * `signature` is a purported Ed25519ph signature on the `prehashed_message`.
     ///
     /// # Returns
     ///
     /// Returns `true` if the `signature` was a valid signature created by this
     /// `Keypair` on the `prehashed_message`.
+    #[cfg(feature = "digest")]
     #[allow(non_snake_case)]
     pub fn verify_prehashed_strict<D>(
         &self,

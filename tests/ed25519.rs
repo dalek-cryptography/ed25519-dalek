@@ -14,6 +14,7 @@ use curve25519_dalek;
 use ed25519_dalek::*;
 
 use hex::FromHex;
+#[cfg(feature = "digest")]
 use hex_literal::hex;
 
 #[cfg(test)]
@@ -96,8 +97,9 @@ mod vectors {
     }
 
     // From https://tools.ietf.org/html/rfc8032#section-7.3
+    #[cfg(feature = "digest")]
     #[test]
-    fn ed25519ph_rf8032_test_vector() {
+    fn ed25519ph_rf8032_test_vector_prehash() {
         let sec_bytes = hex!("833fe62409237b9d62ec77587520911e9a759cec1d19755b7da901b96dca3d42");
         let pub_bytes = hex!("ec172b93ad5e563bf4932c70e1245034c35467ef2efd4d64ebf819683467e2bf");
         let msg_bytes = hex!("616263");
@@ -234,6 +236,7 @@ mod vectors {
 
     // Identical to repudiation() above, but testing verify_prehashed against
     // verify_prehashed_strict. See comments above for a description of what's happening.
+    #[cfg(feature = "digest")]
     #[test]
     fn repudiation_prehash() {
         let message1 = Sha512::new().chain_update(b"Send 100 USD to Alice");
@@ -282,7 +285,9 @@ mod vectors {
 mod integrations {
     use super::*;
     use rand::rngs::OsRng;
+    #[cfg(feature = "digest")]
     use sha2::Sha512;
+    use std::collections::HashMap;
 
     #[test]
     fn sign_verify() {
@@ -327,6 +332,7 @@ mod integrations {
         );
     }
 
+    #[cfg(feature = "digest")]
     #[test]
     fn ed25519ph_sign_verify() {
         let signing_key: SigningKey;
@@ -426,6 +432,33 @@ mod integrations {
         let result = verify_batch(&messages, &signatures, &verifying_keys);
 
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn public_key_hash_trait_check() {
+        let mut csprng = OsRng {};
+        let secret: SigningKey = SigningKey::generate(&mut csprng);
+        let public_from_secret: VerifyingKey = (&secret).into();
+
+        let mut m = HashMap::new();
+        m.insert(public_from_secret, "Example_Public_Key");
+
+        m.insert(public_from_secret, "Updated Value");
+
+        let (k, v) = m.get_key_value(&public_from_secret).unwrap();
+        assert_eq!(k, &public_from_secret);
+        assert_eq!(v.clone(), "Updated Value");
+        assert_eq!(m.len(), 1usize);
+
+        let second_secret: SigningKey = SigningKey::generate(&mut csprng);
+        let public_from_second_secret: VerifyingKey = (&second_secret).into();
+        assert_ne!(public_from_secret, public_from_second_secret);
+        m.insert(public_from_second_secret, "Second public key");
+
+        let (k, v) = m.get_key_value(&public_from_second_secret).unwrap();
+        assert_eq!(k, &public_from_second_secret);
+        assert_eq!(v.clone(), "Second public key");
+        assert_eq!(m.len(), 2usize);
     }
 }
 
