@@ -81,8 +81,8 @@ impl PartialEq<VerifyingKey> for VerifyingKey {
 impl From<&ExpandedSecretKey> for VerifyingKey {
     /// Derive this public key from its corresponding `ExpandedSecretKey`.
     fn from(expanded_secret_key: &ExpandedSecretKey) -> VerifyingKey {
-        let mut bits: [u8; 32] = expanded_secret_key.key.to_bytes();
-        VerifyingKey::mangle_scalar_bits_and_multiply_by_basepoint_to_produce_public_key(&mut bits)
+        let bits: [u8; 32] = expanded_secret_key.key.to_bytes();
+        VerifyingKey::clamp_and_mul_base(bits)
     }
 }
 
@@ -150,17 +150,10 @@ impl VerifyingKey {
         Ok(VerifyingKey(compressed, point))
     }
 
-    /// Internal utility function for mangling the bits of a (formerly
-    /// mathematically well-defined) "scalar" and multiplying it to produce a
-    /// public key.
-    fn mangle_scalar_bits_and_multiply_by_basepoint_to_produce_public_key(
-        bits: &mut [u8; 32],
-    ) -> VerifyingKey {
-        bits[0] &= 248;
-        bits[31] &= 127;
-        bits[31] |= 64;
-
-        let scalar = Scalar::from_bits(*bits);
+    /// Internal utility function for clamping a scalar representation and multiplying by the
+    /// basepont to produce a public key.
+    fn clamp_and_mul_base(bits: [u8; 32]) -> VerifyingKey {
+        let scalar = Scalar::from_bits_clamped(bits);
         let point = EdwardsPoint::mul_base(&scalar);
         let compressed = point.compress();
 
