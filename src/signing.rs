@@ -670,8 +670,10 @@ impl Drop for ExpandedSecretKey {
 }
 
 impl From<&SecretKey> for ExpandedSecretKey {
+    #[allow(clippy::unwrap_used)]
     fn from(secret_key: &SecretKey) -> ExpandedSecretKey {
         let hash = Sha512::default().chain_update(secret_key).finalize();
+        // TODO: Use bytes.split_array_ref once it’s in MSRV.
         let (lower, upper) = hash.split_at(32);
 
         // The try_into here converts to fixed-size array
