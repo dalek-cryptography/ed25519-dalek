@@ -420,6 +420,7 @@ impl Verifier<ed25519::Signature> for VerifyingKey {
     }
 }
 
+/// Equivalent to [`VerifyingKey::verify_prehashed`] with `context` set to [`None`].
 #[cfg(feature = "digest")]
 impl<D> DigestVerifier<D, ed25519::Signature> for VerifyingKey
 where

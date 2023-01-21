@@ -487,6 +487,7 @@ impl Signer<ed25519::Signature> for SigningKey {
     }
 }
 
+/// Equivalent to [`SigningKey::sign_prehashed`] with `context` set to [`None`].
 #[cfg(feature = "digest")]
 impl<D> DigestSigner<D, ed25519::Signature> for SigningKey
 where
