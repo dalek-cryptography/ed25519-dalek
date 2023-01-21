@@ -184,7 +184,8 @@ impl TryFrom<&ed25519::Signature> for InternalSignature {
 impl From<InternalSignature> for ed25519::Signature {
     #[allow(clippy::unwrap_used)]
     fn from(sig: InternalSignature) -> ed25519::Signature {
-        // This function is actually infallible but it's marked as fallible
+        // This function only fails if the s half of the parsed input exceeds the scalar modulus.
+        // Since the bytes are coming straight from a Scalar, this is impossible.
         ed25519::Signature::from_bytes(&sig.as_bytes()).unwrap()
     }
 }
