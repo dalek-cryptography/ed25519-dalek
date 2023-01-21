@@ -40,6 +40,7 @@ use signature::DigestSigner;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::constants::*;
+use crate::context::Context;
 use crate::errors::*;
 use crate::signature::*;
 use crate::verifying::*;
@@ -156,6 +157,15 @@ impl SigningKey {
     /// Get the [`VerifyingKey`] for this [`SigningKey`].
     pub fn verifying_key(&self) -> VerifyingKey {
         self.verifying_key
+    }
+
+    /// Create a signing context that can be used for Ed25519ph with
+    /// [`DigestSigner`].
+    pub fn with_context<'k, 'v>(
+        &'k self,
+        context_value: &'v [u8],
+    ) -> Result<Context<'k, 'v, Self>, SignatureError> {
+        Context::new(self, context_value)
     }
 
     /// Generate an ed25519 signing key.
@@ -492,6 +502,18 @@ where
 {
     fn try_sign_digest(&self, msg_digest: D) -> Result<Signature, SignatureError> {
         self.sign_prehashed(msg_digest, None)
+    }
+}
+
+/// Equivalent to [`SigningKey::sign_prehashed`] with `context` set to [`Some`]
+/// containing [`Context::value`].
+#[cfg(feature = "digest")]
+impl<D> DigestSigner<D, Signature> for Context<'_, '_, SigningKey>
+where
+    D: Digest<OutputSize = U64>,
+{
+    fn try_sign_digest(&self, msg_digest: D) -> Result<Signature, SignatureError> {
+        self.key().sign_prehashed(msg_digest, Some(self.value()))
     }
 }
 

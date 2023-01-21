@@ -258,6 +258,7 @@ pub use ed25519;
 #[cfg(feature = "batch")]
 mod batch;
 mod constants;
+mod context;
 mod errors;
 mod signature;
 mod signing;
@@ -269,6 +270,7 @@ pub use curve25519_dalek::digest::Digest;
 #[cfg(feature = "batch")]
 pub use crate::batch::*;
 pub use crate::constants::*;
+pub use crate::context::Context;
 pub use crate::errors::*;
 pub use crate::signing::*;
 pub use crate::verifying::*;
