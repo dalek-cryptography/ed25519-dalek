@@ -506,7 +506,7 @@ where
 }
 
 /// Equivalent to [`SigningKey::sign_prehashed`] with `context` set to [`Some`]
-/// containing [`Context::value`].
+/// containing `self.value()`.
 #[cfg(feature = "digest")]
 impl<D> DigestSigner<D, Signature> for Context<'_, '_, SigningKey>
 where

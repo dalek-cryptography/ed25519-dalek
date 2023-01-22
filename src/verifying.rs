@@ -442,7 +442,7 @@ where
 }
 
 /// Equivalent to [`VerifyingKey::verify_prehashed`] with `context` set to [`Some`]
-/// containing [`Context::value`].
+/// containing `self.value()`.
 #[cfg(feature = "digest")]
 impl<D> DigestVerifier<D, ed25519::Signature> for Context<'_, '_, VerifyingKey>
 where
