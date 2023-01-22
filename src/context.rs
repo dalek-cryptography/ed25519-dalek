@@ -12,6 +12,37 @@ use crate::{InternalError, SignatureError};
 /// - [`VerifyingKey::with_context`](crate::VerifyingKey::with_context)
 ///
 /// For more information, see [RFC8032 § 8.3](https://www.rfc-editor.org/rfc/rfc8032#section-8.3).
+///
+/// # Example
+///
+#[cfg_attr(feature = "digest", doc = "```")]
+#[cfg_attr(not(feature = "digest"), doc = "```ignore")]
+/// # fn main() {
+/// # use ed25519_dalek::{Signature, SigningKey, VerifyingKey};
+/// # use curve25519_dalek::digest::Digest;
+/// # use rand::rngs::OsRng;
+/// # use sha2::Sha512;
+/// use ed25519_dalek::{DigestSigner, DigestVerifier};
+///
+/// # let mut csprng = OsRng;
+/// # let signing_key = SigningKey::generate(&mut csprng);
+/// # let verifying_key = signing_key.verifying_key();
+/// let context_str = b"Local Channel 3";
+/// let prehashed_message = Sha512::default().chain_update(b"Stay tuned for more news at 7");
+///
+/// // Signer
+/// let signing_context = signing_key.with_context(context_str).unwrap();
+/// let signature = signing_context.sign_digest(prehashed_message.clone());
+///
+/// // Verifier
+/// let verifying_context = verifying_key.with_context(context_str).unwrap();
+/// let verified: bool = verifying_context
+///     .verify_digest(prehashed_message, &signature)
+///     .is_ok();
+///
+/// # assert!(verified);
+/// # }
+/// ```
 #[derive(Clone, Debug)]
 pub struct Context<'k, 'v, K> {
     /// Key this context is being used with.
@@ -42,5 +73,36 @@ impl<'k, 'v, K> Context<'k, 'v, K> {
     /// Borrow the context string value.
     pub fn value(&self) -> &'v [u8] {
         self.value
+    }
+}
+
+#[cfg(all(test, feature = "digest"))]
+mod test {
+    use crate::{Signature, SigningKey, VerifyingKey};
+    use curve25519_dalek::digest::Digest;
+    use ed25519::signature::{DigestSigner, DigestVerifier};
+    use rand::rngs::OsRng;
+    use sha2::Sha512;
+
+    #[test]
+    fn context_correctness() {
+        let mut csprng = OsRng;
+        let signing_key: SigningKey = SigningKey::generate(&mut csprng);
+        let verifying_key: VerifyingKey = signing_key.verifying_key();
+
+        let context_str = b"Local Channel 3";
+        let prehashed_message = Sha512::default().chain_update(b"Stay tuned for more news at 7");
+
+        // Signer
+        let signing_context = signing_key.with_context(context_str).unwrap();
+        let signature: Signature = signing_context.sign_digest(prehashed_message.clone());
+
+        // Verifier
+        let verifying_context = verifying_key.with_context(context_str).unwrap();
+        let verified: bool = verifying_context
+            .verify_digest(prehashed_message, &signature)
+            .is_ok();
+
+        assert!(verified);
     }
 }
