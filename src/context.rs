@@ -1,6 +1,6 @@
 use crate::{InternalError, SignatureError};
 
-/// Ed25519 contexts as used by Ed25519ctx and Ed25519ph.
+/// Ed25519 contexts as used by Ed25519ph.
 ///
 /// Contexts are domain separator strings that can be used to separate uses of
 /// the protocol between different protocols (which is very hard to reliably do
@@ -55,7 +55,7 @@ impl<'k, 'v, K> Context<'k, 'v, K> {
     /// Maximum length of the context value in octets.
     pub const MAX_LENGTH: usize = 255;
 
-    /// Create a new Ed25519ctx/Ed25519ph context.
+    /// Create a new Ed25519ph context.
     pub(crate) fn new(key: &'k K, value: &'v [u8]) -> Result<Self, SignatureError> {
         if value.len() <= Self::MAX_LENGTH {
             Ok(Self { key, value })
