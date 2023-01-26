@@ -2,8 +2,8 @@ use crate::{InternalError, SignatureError};
 
 /// Ed25519 contexts as used by Ed25519ph.
 ///
-/// Contexts are domain separator strings that can be used to separate uses of
-/// the protocol between different protocols (which is very hard to reliably do
+/// Contexts are domain separator strings that can be used to isolate uses of
+/// the algorithm between different protocols (which is very hard to reliably do
 /// otherwise) and between different uses within the same protocol.
 ///
 /// To create a context, call either of the following:
