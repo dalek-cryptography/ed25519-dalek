@@ -73,7 +73,7 @@
 //! # use ed25519_dalek::Signature;
 //! # use ed25519_dalek::Signer;
 //! use ed25519_dalek::{VerifyingKey, Verifier};
-//! # let mut csprng = OsRng{};
+//! # let mut csprng = OsRng;
 //! # let signing_key: SigningKey = SigningKey::generate(&mut csprng);
 //! # let message: &[u8] = b"This is a test of the tsunami alert system.";
 //! # let signature: Signature = signing_key.sign(message);
@@ -97,7 +97,7 @@
 //! # use rand::rngs::OsRng;
 //! # use ed25519_dalek::{SigningKey, Signature, Signer, VerifyingKey};
 //! use ed25519_dalek::{PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH, KEYPAIR_LENGTH, SIGNATURE_LENGTH};
-//! # let mut csprng = OsRng{};
+//! # let mut csprng = OsRng;
 //! # let signing_key: SigningKey = SigningKey::generate(&mut csprng);
 //! # let message: &[u8] = b"This is a test of the tsunami alert system.";
 //! # let signature: Signature = signing_key.sign(message);
@@ -266,6 +266,8 @@ mod verifying;
 
 #[cfg(feature = "digest")]
 pub use curve25519_dalek::digest::Digest;
+#[cfg(feature = "digest")]
+pub use sha2::Sha512;
 
 #[cfg(feature = "batch")]
 pub use crate::batch::*;

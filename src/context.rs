@@ -18,10 +18,9 @@ use crate::{InternalError, SignatureError};
 #[cfg_attr(feature = "digest", doc = "```")]
 #[cfg_attr(not(feature = "digest"), doc = "```ignore")]
 /// # fn main() {
-/// # use ed25519_dalek::{Signature, SigningKey, VerifyingKey};
+/// use ed25519_dalek::{Signature, SigningKey, VerifyingKey, Sha512};
 /// # use curve25519_dalek::digest::Digest;
 /// # use rand::rngs::OsRng;
-/// # use sha2::Sha512;
 /// use ed25519_dalek::{DigestSigner, DigestVerifier};
 ///
 /// # let mut csprng = OsRng;
