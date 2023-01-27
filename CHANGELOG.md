@@ -15,6 +15,7 @@ Entries are listed in reverse chronological order per undeprecated major series.
 * Bump MSRV from 1.41 to 1.60.0
 * Bump Rust edition
 * Bump `signature` dependency to 2.0
+* Make [curve25519-backend selection](https://github.com/dalek-cryptography/curve25519-dalek/#backends) more automatic
 * Make `digest` an optional dependency
 * Make `zeroize` an optional dependency
 * Make `rand_core` an optional dependency

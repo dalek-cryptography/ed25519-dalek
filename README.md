@@ -35,12 +35,16 @@ See [CHANGELOG.md](CHANGELOG.md) for a list of changes made in past version of t
 
 ## 2.0.0 Breaking Changes
 
-* Update the MSRV from 1.41 to 1.60
-* `batch` is now `batch_deterministic`
-* Removed `ExpandedSecretKey` API
-* [curve25519-backend selection] is more automatic
-
-[curve25519-backend selection]: https://github.com/dalek-cryptography/curve25519-dalek/#backends
+* Bump MSRV from 1.41 to 1.60.0
+* Bump Rust edition
+* Bump `signature` dependency to 2.0
+* Make [curve25519-backend selection](https://github.com/dalek-cryptography/curve25519-dalek/#backends) more automatic
+* Make `digest` an optional dependency
+* Make `zeroize` an optional dependency
+* Make `rand_core` an optional dependency
+* Make all batch verification deterministic remove `batch_deterministic` ([#256](https://github.com/dalek-cryptography/ed25519-dalek/pull/256))
+* Remove `ExpandedSecretKey` API ((#205)[https://github.com/dalek-cryptography/ed25519-dalek/pull/205])
+* Rename `Keypair` → `SigningKey` and `PublicKey` → `VerifyingKey`
 
 # Documentation
 
@@ -71,9 +75,11 @@ Below are the specific policies:
 | :---     | :---                    | :---   |
 | 2.x      | Dependencies `digest`, `pkcs8` and `rand_core` | Minor SemVer bump |
 
+TODO @tarcieri what about PEM?
+
 ## Safety
 
-This crate does not require any unsafe and forbids all unsafe in-crate outside tests.
+`ed25519-dalek` forbids `unsafe` in-crate outside tests.
 
 # Performance
 
