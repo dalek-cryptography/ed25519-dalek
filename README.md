@@ -20,14 +20,14 @@ This crate is `#[no_std]` compatible with `default-features = false`
 | :---                   | :---     | :---        |
 | `alloc`                | ✓        | Enables features that require dynamic heap allocation |
 | `std`                  | ✓        | Implements `std::error::Error` for `SignatureError` |
-| `zeroize`              | ✓        | Enables `Zeroize` and `ZeroizeOnDrop` for `SigningKey` |
+| `zeroize`              | ✓        | Implements `Zeroize` and `ZeroizeOnDrop` for `SigningKey` |
+| `rand_core`            |          | Enables `SigningKey::generate` |
+| `batch`                |          | Enables `verify_batch` for verifying many signatures quickly. Also enables `rand_core`. |
+| `digest`               |          | Enables `Context`, `SigningKey::{with_context, sign_prehashed}` and `VerifyingKey::{with_context, verify_prehashed, verify_prehashed_strict}` for Ed25519ph prehashed signatures |
 | `asm`                  |          | Enables assembly optimizations in the SHA-512 compression functions |
-| `batch`                |          | Enables `verify_batch` for verifying many signatures quickly |
-| `digest`               |          | Enables `Context` |
-| `legacy_compatibility` |          | See: A Note on Signature Malleability |
-| `pkcs8`                |          | PKCS#8 Support |
-| `pem`                  |          | PEM Support |
-| `rand_core`            |          | TODO        |
+| `pkcs8`                |          | Enables [PKCS#8](https://en.wikipedia.org/wiki/PKCS_8) serialization/deserialization for `SigningKey` and `VerifyingKey` |
+| `pem`                  |          | TODO: @tarcieri how is this different from `pkcs8`? |
+| `legacy_compatibility` |          | **Unsafe:** Disables certain signature checks. See [the section on malleability](#a-note-on-signature-malleability) |
 
 # Major Changes
 
