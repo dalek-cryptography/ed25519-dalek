@@ -257,6 +257,7 @@ pub use ed25519;
 #[cfg(feature = "batch")]
 mod batch;
 mod constants;
+#[cfg(feature = "digest")]
 mod context;
 mod errors;
 mod signature;
@@ -271,6 +272,7 @@ pub use sha2::Sha512;
 #[cfg(feature = "batch")]
 pub use crate::batch::*;
 pub use crate::constants::*;
+#[cfg(feature = "digest")]
 pub use crate::context::Context;
 pub use crate::errors::*;
 pub use crate::signing::*;

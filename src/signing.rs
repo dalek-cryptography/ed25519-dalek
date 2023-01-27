@@ -34,13 +34,14 @@ use curve25519_dalek::scalar::Scalar;
 use ed25519::signature::{KeypairRef, Signer, Verifier};
 
 #[cfg(feature = "digest")]
+use crate::context::Context;
+#[cfg(feature = "digest")]
 use signature::DigestSigner;
 
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::constants::*;
-use crate::context::Context;
 use crate::errors::*;
 use crate::signature::*;
 use crate::verifying::*;
@@ -161,6 +162,7 @@ impl SigningKey {
 
     /// Create a signing context that can be used for Ed25519ph with
     /// [`DigestSigner`].
+    #[cfg(feature = "digest")]
     pub fn with_context<'k, 'v>(
         &'k self,
         context_value: &'v [u8],

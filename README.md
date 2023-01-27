@@ -23,7 +23,7 @@ This crate is `#[no_std]` compatible with `default-features = false`
 | `zeroize`              | ✓        | Enables `Zeroize` and `ZeroizeOnDrop` for `SigningKey` |
 | `asm`                  |          | Enables assembly optimizations in the SHA-512 compression functions |
 | `batch`                |          | Enables `verify_batch` for verifying many signatures quickly |
-| `digest`               |          | TODO |
+| `digest`               |          | Enables `Context` |
 | `legacy_compatibility` |          | See: A Note on Signature Malleability |
 | `pkcs8`                |          | PKCS#8 Support |
 | `pem`                  |          | PEM Support |
