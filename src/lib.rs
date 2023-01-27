@@ -113,9 +113,8 @@
 //!
 #![cfg_attr(feature = "rand_core", doc = "```")]
 #![cfg_attr(not(feature = "rand_core"), doc = "```ignore")]
-//! # use std::convert::TryFrom;
+//! # use core::convert::{TryFrom, TryInto};
 //! # use rand::rngs::OsRng;
-//! # use std::convert::TryInto;
 //! # use ed25519_dalek::{SigningKey, Signature, Signer, VerifyingKey, SecretKey, SignatureError};
 //! # use ed25519_dalek::{PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH, KEYPAIR_LENGTH, SIGNATURE_LENGTH};
 //! # fn do_test() -> Result<(SigningKey, VerifyingKey, Signature), SignatureError> {
