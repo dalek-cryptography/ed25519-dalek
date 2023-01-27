@@ -26,7 +26,7 @@ This crate is `#[no_std]` compatible with `default-features = false`
 | `digest`               |          | Enables `Context`, `SigningKey::{with_context, sign_prehashed}` and `VerifyingKey::{with_context, verify_prehashed, verify_prehashed_strict}` for Ed25519ph prehashed signatures |
 | `asm`                  |          | Enables assembly optimizations in the SHA-512 compression functions |
 | `pkcs8`                |          | Enables [PKCS#8](https://en.wikipedia.org/wiki/PKCS_8) serialization/deserialization for `SigningKey` and `VerifyingKey` |
-| `pem`                  |          | TODO: @tarcieri how is this different from `pkcs8`? |
+| `pem`                  |          | TODO |
 | `legacy_compatibility` |          | **Unsafe:** Disables certain signature checks. See [the section on malleability](#a-note-on-signature-malleability) |
 
 # Major Changes
@@ -145,79 +145,44 @@ Please see the [curve25519_dalek backend documentation](https://docs.rs/curve255
 
 See [CONTRIBUTING.md](CONTRIBUTING.md)
 
-# A Note on Signature Malleability
+# Batch Signature Verification
 
-The signatures produced by this library are malleable, as discussed in
-[the original paper](https://ed25519.cr.yp.to/ed25519-20110926.pdf):
+The standard variants of batch signature verification (i.e. many signatures made with potentially many different public keys over potentially many different messages) is available via the `batch` feature. It uses deterministic randomness, i.e., it hashes the inputs (using [`merlin`](https://merlin.cool/), which handles transcript item separation) and uses the result to generate random coefficients. Batch verification requires allocation, so this won't function in heapless settings.
 
-![](https://cdn.jsdelivr.net/gh/dalek-cryptography/ed25519-dalek/docs/assets/ed25519-malleability.png)
+# Validation Criteria
 
-While the scalar component of our `Signature` struct is strictly *not*
-malleable, because reduction checks are put in place upon `Signature`
-deserialisation from bytes, for all types of signatures in this crate,
-there is still the question of potential malleability due to the group
-element components.
+The _validation criteria_ of a signature scheme are the criteria that signatures and public keys must satisfy in order to be accepted. Unfortunately, Ed25519 has some underspecified parts, leading to different validation criteria across implementations. For a very good overview of this, see [Henry's post][validation].
 
-We could eliminate the latter malleability property by multiplying by the curve
-cofactor, however, this would cause our implementation to *not* match the
-behaviour of every other implementation in existence.  As of this writing,
-[RFC 8032](https://tools.ietf.org/html/rfc8032), "Edwards-Curve Digital
-Signature Algorithm (EdDSA)," advises that the stronger check should be done.
-While we agree that the stronger check should be done, it is our opinion that
-one shouldn't get to change the definition of "ed25519 verification" a decade
-after the fact, breaking compatibility with every other implementation.
+In this section, we mention some specific details about our validation criteria, and how to navigate them.
 
-However, if you require this, please see the documentation for the
-`verify_strict()` function, which does the full checks for the group elements.
-This functionality is available by default.
+## Malleability and the `legacy_compatibility` Feature
 
-If for some reason—although we strongly advise you not to—you need to conform
-to the original specification of ed25519 signatures as in the excerpt from the
-paper above, you can disable scalar malleability checking via
-`--features='legacy_compatibility'`.  **WE STRONGLY ADVISE AGAINST THIS.**
+A signature scheme is considered to produce _malleable signatures_ if a passive attacker with knowledge of a public key _A_, message _m_, and valid signature _σ'_ can produce a distinct _σ'_ such that _σ'_ is a valid signature of _m_ with respect to _A_. A scheme is only malleable if the attacker can do this _without_ knowledge of the private key corresponding to _A_.
 
-## The `legacy_compatibility` Feature
+`ed25519-dalek` is not a malleable signature scheme.
 
-By default, this library performs a stricter check for malleability in the
-scalar component of a signature, upon signature deserialisation.  This stricter
-check, that `s < \ell` where `\ell` is the order of the basepoint, is
-[mandated by RFC8032](https://tools.ietf.org/html/rfc8032#section-5.1.7).
-However, that RFC was standardised a decade after the original paper, which, as
-described above, (usually, falsely) stated that malleability was inconsequential.
+Some other Ed25519 implementations are malleable, though, such as [libsodium with `ED25519_COMPAT` enabled](https://github.com/jedisct1/libsodium/blob/24211d370a9335373f0715664271dfe203c7c2cd/src/libsodium/crypto_sign/ed25519/ref10/open.c#L30), [ed25519-donna](https://github.com/floodyberry/ed25519-donna/blob/8757bd4cd209cb032853ece0ce413f122eef212c/ed25519.c#L100), [NaCl's ref10 impl](https://github.com/floodyberry/ed25519-donna/blob/8757bd4cd209cb032853ece0ce413f122eef212c/fuzz/ed25519-ref10.c#L4627), and probably a lot more.
 
-Because of this, most ed25519 implementations only perform a limited, hackier
-check that the most significant three bits of the scalar are unset.  If you need
-compatibility with legacy implementations, including:
+If you need to interoperate with such implementations and accept otherwise invalid signatures, you can enable the `legacy_compatibility` flag. **Do not enable `legacy_compatibility`** if you don't have to, because it will make your signatures malleable.
 
-* ed25519-donna
-* Golang's /x/crypto ed25519
-* libsodium (only when built with `-DED25519_COMPAT`)
-* NaCl's "ref" implementation
-* probably a bunch of others
+Note: [CIRCL](https://github.com/cloudflare/circl/blob/fa6e0cca79a443d7be18ed241e779adf9ed2a301/sign/ed25519/ed25519.go#L358) has no scalar range check at all. We do not have a feature flag for interoperating with the larger set of RFC-disallowed signatures that CIRCL accepts.
 
-then enable `ed25519-dalek`'s `legacy_compatibility` feature.  Please note and
-be forewarned that doing so allows for signature malleability, meaning that
-there may be two different and "valid" signatures with the same key for the same
-message, which is obviously incredibly dangerous in a number of contexts,
-including—but not limited to—identification protocols and cryptocurrency
-transactions.
+## Weakkey Forgery and `verify_strict()`
 
-## The `verify_strict()` Function
+A _signature forgery_ is what it sounds like: it's when an attacker, given a public key _A_, creates a signature _σ_ and message _m_ such that _σ_ is a valid signature of _m_ with respect to _A_. Since this is the core security definition of any signature scheme, Ed25519 signatures cannot be forged.
 
-The scalar component of a signature is not the only source of signature
-malleability, however.  Both the public key used for signature verification and
-the group element component of the signature are malleable, as they may contain
-a small torsion component as a consequence of the curve25519 group not being of
-prime order, but having a small cofactor of 8.
+However, there's a much looser kind of forgery that Ed25519 permits, which we call _weak key forgery_. An attacker can produce a special public key _A_ (which we call a _weak_ public key) and a signature _σ_ such that _σ_ is a valid signature of _any_ message _m_, with respect to _A_, with high probability. This attack is acknowledged in the [Ed25519 paper](https://ed25519.cr.yp.to/ed25519-20110926.pdf), and caused an exploitable bug in the Scuttlebutt protocol ([paper](https://eprint.iacr.org/2019/526.pdf), section 7.1). The [`VerifyingKey::verify()`](https://docs.rs/ed25519-dalek/latest/ed25519_dalek/struct.VerifyingKey.html#method.verify_strict) function permits weak keys.
 
-If you wish to also eliminate this source of signature malleability, please
-review the
-[documentation for the `verify_strict()` function](https://docs.rs/ed25519-dalek/latest/ed25519_dalek/struct.PublicKey.html#method.verify_strict).
+We provide [`VerifyingKey::verify_strict`](https://docs.rs/ed25519-dalek/latest/ed25519_dalek/struct.VerifyingKey.html#method.verify_strict) (and `verify_strict_prehashed`) to help users avoid these scenarios. These functions perform an extra check on _A_, ensuring it's not a weak public key.
 
-## Batch Signature Verification
+## Batch verification
 
-The standard variants of batch signature verification (i.e. many signatures made
-with potentially many different public keys over potentially many different
-messages) is available via the `batch` feature.  It uses synthetic randomness, as
-noted above. Batch verification requires allocation, so this won't function in
-heapless settings.
+As mentioned above, weak public keys can be used to produce signatures for unknown messages with high probability. This means that sometimes a weak forgery attempt will fail. In fact, it can fail up to 7/8 of the time. If you call `verify()` twice on the same failed forgery, it will return an error both times, as expected. However, if you call `verify_batch()` twice on two distinct otherwise-valid batches, both of which contain the failed forgery, there's a 21% chance that one fails and the other succeeds.
+
+Why is this? It's because `verify_batch()` does not do the weak key testing of `verify_strict()`, and it multiplies each verification equation by some random coefficient. If the failed forgery gets multiplied by 8, then the weak key (which is a low-order point) becomes 0, and the verification equation on the attempted forgery will succeed.
+
+Since `verify_batch()` is intended to be high-throughput, we think it's best not to put weak key checks in it. If you want to prevent weird behavior due to weak public keys in your batches,
+TODO
+you should call `VerifyingKey::is_weak` on the inputs in advance.
+
+[validation]: https://hdevalence.ca/blog/2020-10-04-its-25519am
