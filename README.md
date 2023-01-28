@@ -1,7 +1,7 @@
-# ed25519-dalek [![](https://img.shields.io/crates/v/ed25519-dalek.svg)](https://crates.io/crates/ed25519-dalek) [![](https://docs.rs/ed25519-dalek/badge.svg)](https://docs.rs/ed25519-dalek) [![](https://travis-ci.org/dalek-cryptography/ed25519-dalek.svg?branch=master)](https://travis-ci.org/dalek-cryptography/ed25519-dalek?branch=master)
+# ed25519-dalek [![](https://img.shields.io/crates/v/ed25519-dalek.svg)](https://crates.io/crates/ed25519-dalek) [![](https://docs.rs/ed25519-dalek/badge.svg)](https://docs.rs/ed25519-dalek) [![Rust](https://github.com/dalek-cryptography/curve25519-dalek/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/dalek-cryptography/curve25519-dalek/actions/workflows/rust.yml)
 
 Fast and efficient Rust implementation of ed25519 key generation, signing, and
-verification in Rust.
+verification.
 
 # Use
 
@@ -23,12 +23,12 @@ ed25519-dalek = "2.0.0-pre.0"
 
 # Feature Flags
 
-This crate is `#[no_std]` compatible with `default-features = false`
+This crate is `#[no_std]` compatible with `default-features = false`.
 
 | Feature                | Default? | Description |
 | :---                   | :---     | :---        |
-| `alloc`                | ✓        | Enables features that require dynamic heap allocation |
-| `std`                  | ✓        | Implements `std::error::Error` for `SignatureError` |
+| `alloc`                | ✓        | When `pkcs8` is enabled, implements `EncodePrivateKey`/`EncodePublicKey` for `SigningKey`/`VerifyingKey`, respectively. |
+| `std`                  | ✓        | Implements `std::error::Error` for `SignatureError`. Also enables `alloc`. |
 | `zeroize`              | ✓        | Implements `Zeroize` and `ZeroizeOnDrop` for `SigningKey` |
 | `rand_core`            |          | Enables `SigningKey::generate` |
 | `batch`                |          | Enables `verify_batch` for verifying many signatures quickly. Also enables `rand_core`. |
@@ -59,10 +59,9 @@ See [CHANGELOG.md](CHANGELOG.md) for a list of changes made in past version of t
 
 Documentation is available [here](https://docs.rs/ed25519-dalek).
 
-# Policies
+# Compatibility Policies
 
-All on-by-default features of this library are covered by semantic versioning (SemVer)
-
+All on-by-default features of this library are covered by [semantic versioning](https://semver.org/spec/v2.0.0.html) (SemVer).
 SemVer exemptions are outlined below for MSRV and public API.
 
 ## Minimum Supported Rust Version
@@ -72,11 +71,11 @@ SemVer exemptions are outlined below for MSRV and public API.
 | 2.x      | 1.60   |
 | 1.x      | 1.41   |
 
-MSRV changes will be accompanied by a minor version bump.
+From 2.x and on, MSRV changes will be accompanied by a minor version bump.
 
 ## Public API SemVer Exemptions
 
-Breaking changes to SemVer exempted components affecting the public API will be accompanied by some version bump.
+Breaking changes to SemVer-exempted components affecting the public API will be accompanied by some version bump.
 
 Below are the specific policies:
 
@@ -84,11 +83,11 @@ Below are the specific policies:
 | :---     | :---                    | :---   |
 | 2.x      | Dependencies `digest`, `pkcs8` and `rand_core` | Minor SemVer bump |
 
-TODO @tarcieri what about PEM?
+# Safety
 
-## Safety
+`ed25519-dalek` is designed to prevent misuse. Signing is constant-time, all signing keys are zeroed when they go out of scope (unless `zeroize` is disabled), detached public keys [cannot](https://github.com/MystenLabs/ed25519-unsafe-libs/blob/main/README.md) be used for signing, and extra functions like [`VerifyingKey::verify_strict`](#weak-key-forgery-and-verify_strict) are made available to avoid known gotchas.
 
-`ed25519-dalek` forbids `unsafe` in-crate outside tests.
+Further, this crate has no—and in fact forbids—unsafe code. You can opt in to using some highly optimized unsafe code that resides in `curve25519-dalek`, though. See [below](#microarchitecture-specific-backends) for more information on backend selection.
 
 # Performance
 
@@ -123,32 +122,19 @@ On an Intel 10700K running at stock comparing between the `curve25519-dalek` bac
 | batch signature verification/256| 4.1868 ms | 2.8864 ms -31.061% | 4.6494 ms +61.081% |
 | keypair generation              | 13.973 µs | 13.108 µs -6.5062% | 15.099 µs +15.407% |
 
-Additionally, if you're using a CSPRNG from the `rand` crate, the `nightly`
-feature will enable `u128`/`i128` features there, resulting in potentially
-faster performance.
-
 ## Batch Performance
 
 If your protocol or application is able to batch signatures for verification,
-the `verify_batch()` function has greatly improved performance.
+the [`verify_batch`][func_verify_batch] function has greatly improved performance.
 
 As you can see, there's an optimal batch size for each machine, so you'll likely
 want to test the benchmarks on your target CPU to discover the best size.
 
 ## (Micro)Architecture Specific Backends
 
-`ed25519-dalek` uses the backends from the `curve25519-dalek` crate.
+A _backend_ refers to an implementation of elliptic curve and scalar arithmetic. Different backends have different use cases. For example, if you demand formally verified code, you want to use the `fiat` backend (as it was generated from [Fiat Crypto][fiat]). If you want the highest performance possible, you probably want the `simd` backend.
 
-By default the serial backend is used and depending on the target
-platform either the 32 bit or the 64 bit serial formula is automatically used.
-
-To address variety of  usage scenarios various backends are available that
-include hardware optimisations as well as a formally verified fiat crypto
-backend that does not use any hardware optimisations.
-
-These backends can be overridden with various configuration predicates (cfg)
-
-Please see the [curve25519-dalek backend documentation](https://docs.rs/curve25519-dalek/latest/curve25519_dalek).
+Backend selection details and instructions can be found in the [curve25519-dalek docs](https://github.com/dalek-cryptography/curve25519-dalek#backends).
 
 # Contributing
 
@@ -179,9 +165,9 @@ Note: [CIRCL](https://github.com/cloudflare/circl/blob/fa6e0cca79a443d7be18ed241
 
 A _signature forgery_ is what it sounds like: it's when an attacker, given a public key _A_, creates a signature _σ_ and message _m_ such that _σ_ is a valid signature of _m_ with respect to _A_. Since this is the core security definition of any signature scheme, Ed25519 signatures cannot be forged.
 
-However, there's a much looser kind of forgery that Ed25519 permits, which we call _weak key forgery_. An attacker can produce a special public key _A_ (which we call a _weak_ public key) and a signature _σ_ such that _σ_ is a valid signature of _any_ message _m_, with respect to _A_, with high probability. This attack is acknowledged in the [Ed25519 paper](https://ed25519.cr.yp.to/ed25519-20110926.pdf), and caused an exploitable bug in the Scuttlebutt protocol ([paper](https://eprint.iacr.org/2019/526.pdf), section 7.1). The [`VerifyingKey::verify()`](https://docs.rs/ed25519-dalek/latest/ed25519_dalek/struct.VerifyingKey.html#method.verify_strict) function permits weak keys.
+However, there's a much looser kind of forgery that Ed25519 permits, which we call _weak key forgery_. An attacker can produce a special public key _A_ (which we call a _weak_ public key) and a signature _σ_ such that _σ_ is a valid signature of _any_ message _m_, with respect to _A_, with high probability. This attack is acknowledged in the [Ed25519 paper](https://ed25519.cr.yp.to/ed25519-20110926.pdf), and caused an exploitable bug in the Scuttlebutt protocol ([paper](https://eprint.iacr.org/2019/526.pdf), section 7.1). The [`VerifyingKey::verify()`][method_verify] function permits weak keys.
 
-We provide [`VerifyingKey::verify_strict`](https://docs.rs/ed25519-dalek/latest/ed25519_dalek/struct.VerifyingKey.html#method.verify_strict) (and `verify_strict_prehashed`) to help users avoid these scenarios. These functions perform an extra check on _A_, ensuring it's not a weak public key.
+We provide [`VerifyingKey::verify_strict`][method_verify_strict] (and [`verify_strict_prehashed`][method_verify_strict_ph]) to help users avoid these scenarios. These functions perform an extra check on _A_, ensuring it's not a weak public key. In addition, we provide the [`VerifyingKey::is_weak`][method_is_weak] to allow users to perform this check before attempting signature verification.
 
 ## Batch verification
 
@@ -191,6 +177,12 @@ Why is this? It's because `verify_batch()` does not do the weak key testing of `
 
 Since `verify_batch()` is intended to be high-throughput, we think it's best not to put weak key checks in it. If you want to prevent weird behavior due to weak public keys in your batches,
 TODO
-you should call `VerifyingKey::is_weak` on the inputs in advance.
+you should call [`VerifyingKey::is_weak`][method_is_weak] on the inputs in advance.
 
+[fiat]: https://github.com/mit-plv/fiat-crypto
 [validation]: https://hdevalence.ca/blog/2020-10-04-its-25519am
+[func_verify_batch]: https://docs.rs/ed25519-dalek/latest/ed25519_dalek/fn.verify_batch.html
+[method_verify]: https://docs.rs/ed25519-dalek/latest/ed25519_dalek/struct.VerifyingKey.html#method.verify
+[method_verify_strict]: https://docs.rs/ed25519-dalek/latest/ed25519_dalek/struct.VerifyingKey.html#method.verify_strict
+[method_verify_strict_ph]: https://docs.rs/ed25519-dalek/latest/ed25519_dalek/struct.VerifyingKey.html#method.verify_strict_prehashed
+[method_is_weak]: https://docs.rs/ed25519-dalek/latest/ed25519_dalek/struct.VerifyingKey.html#method.is_weak
