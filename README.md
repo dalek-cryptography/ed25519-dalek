@@ -5,11 +5,20 @@ verification in Rust.
 
 # Use
 
-To use, add the following to your project's `Cargo.toml`:
+## Stable
 
+To import `ed25519-dalek`, add the following to the dependencies section of
+your project's `Cargo.toml`:
 ```toml
-[dependencies.ed25519-dalek]
-version = "1"
+ed25519-dalek = "1"
+```
+
+## Beta
+
+To use the latest prerelease (see changes [below](#breaking-changes-in-200)),
+use the following line in your project's `Cargo.toml`:
+```toml
+ed25519-dalek = "2.0.0-pre.0"
 ```
 
 # Feature Flags
@@ -33,7 +42,7 @@ This crate is `#[no_std]` compatible with `default-features = false`
 
 See [CHANGELOG.md](CHANGELOG.md) for a list of changes made in past version of this crate.
 
-## 2.0.0 Breaking Changes
+## Breaking Changes in 2.0.0
 
 * Bump MSRV from 1.41 to 1.60.0
 * Bump Rust edition
@@ -137,9 +146,9 @@ To address variety of  usage scenarios various backends are available that
 include hardware optimisations as well as a formally verified fiat crypto
 backend that does not use any hardware optimisations.
 
-These backends can be overriden with various configuration predicates (cfg)
+These backends can be overridden with various configuration predicates (cfg)
 
-Please see the [curve25519_dalek backend documentation](https://docs.rs/curve25519-dalek/latest/curve25519_dalek).
+Please see the [curve25519-dalek backend documentation](https://docs.rs/curve25519-dalek/latest/curve25519_dalek).
 
 # Contributing
 
@@ -166,7 +175,7 @@ If you need to interoperate with such implementations and accept otherwise inval
 
 Note: [CIRCL](https://github.com/cloudflare/circl/blob/fa6e0cca79a443d7be18ed241e779adf9ed2a301/sign/ed25519/ed25519.go#L358) has no scalar range check at all. We do not have a feature flag for interoperating with the larger set of RFC-disallowed signatures that CIRCL accepts.
 
-## Weakkey Forgery and `verify_strict()`
+## Weak key Forgery and `verify_strict()`
 
 A _signature forgery_ is what it sounds like: it's when an attacker, given a public key _A_, creates a signature _σ_ and message _m_ such that _σ_ is a valid signature of _m_ with respect to _A_. Since this is the core security definition of any signature scheme, Ed25519 signatures cannot be forged.
 
