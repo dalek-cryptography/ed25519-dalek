@@ -27,7 +27,7 @@ This crate is `#[no_std]` compatible with `default-features = false`
 | `asm`                  |          | Enables assembly optimizations in the SHA-512 compression functions |
 | `pkcs8`                |          | Enables [PKCS#8](https://en.wikipedia.org/wiki/PKCS_8) serialization/deserialization for `SigningKey` and `VerifyingKey` |
 | `pem`                  |          | TODO |
-| `legacy_compatibility` |          | **Unsafe:** Disables certain signature checks. See [the section on malleability](#a-note-on-signature-malleability) |
+| `legacy_compatibility` |          | **Unsafe:** Disables certain signature checks. See [below](#malleability-and-the-legacy_compatibility-feature) |
 
 # Major Changes
 
@@ -162,7 +162,6 @@ A signature scheme is considered to produce _malleable signatures_ if a passive 
 `ed25519-dalek` is not a malleable signature scheme.
 
 Some other Ed25519 implementations are malleable, though, such as [libsodium with `ED25519_COMPAT` enabled](https://github.com/jedisct1/libsodium/blob/24211d370a9335373f0715664271dfe203c7c2cd/src/libsodium/crypto_sign/ed25519/ref10/open.c#L30), [ed25519-donna](https://github.com/floodyberry/ed25519-donna/blob/8757bd4cd209cb032853ece0ce413f122eef212c/ed25519.c#L100), [NaCl's ref10 impl](https://github.com/floodyberry/ed25519-donna/blob/8757bd4cd209cb032853ece0ce413f122eef212c/fuzz/ed25519-ref10.c#L4627), and probably a lot more.
-
 If you need to interoperate with such implementations and accept otherwise invalid signatures, you can enable the `legacy_compatibility` flag. **Do not enable `legacy_compatibility`** if you don't have to, because it will make your signatures malleable.
 
 Note: [CIRCL](https://github.com/cloudflare/circl/blob/fa6e0cca79a443d7be18ed241e779adf9ed2a301/sign/ed25519/ed25519.go#L358) has no scalar range check at all. We do not have a feature flag for interoperating with the larger set of RFC-disallowed signatures that CIRCL accepts.
