@@ -26,7 +26,7 @@ Entries are listed in reverse chronological order per undeprecated major series.
 ### Other changes
 
 * Add `Context` type for prehashed signing
-* Add `VerifyingKey::verify_prehash_strict`
+* Add `VerifyingKey::{verify_prehash_strict, is_weak}`
 * Add `pkcs` feature to support PKCS #8 (de)serialization of `SigningKey` and `VerifyingKey`
 * Add `fast` feature to include basepoint tables
 * Add tests for validation criteria

@@ -175,9 +175,7 @@ As mentioned above, weak public keys can be used to produce signatures for unkno
 
 Why is this? It's because `verify_batch()` does not do the weak key testing of `verify_strict()`, and it multiplies each verification equation by some random coefficient. If the failed forgery gets multiplied by 8, then the weak key (which is a low-order point) becomes 0, and the verification equation on the attempted forgery will succeed.
 
-Since `verify_batch()` is intended to be high-throughput, we think it's best not to put weak key checks in it. If you want to prevent weird behavior due to weak public keys in your batches,
-TODO
-you should call [`VerifyingKey::is_weak`][method_is_weak] on the inputs in advance.
+Since `verify_batch()` is intended to be high-throughput, we think it's best not to put weak key checks in it. If you want to prevent weird behavior due to weak public keys in your batches, you should call [`VerifyingKey::is_weak`][method_is_weak] on the inputs in advance.
 
 [fiat]: https://github.com/mit-plv/fiat-crypto
 [validation]: https://hdevalence.ca/blog/2020-10-04-its-25519am
