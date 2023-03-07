@@ -19,7 +19,7 @@ use rand_core::CryptoRngCore;
 use serde::de::Error as SerdeError;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-#[cfg(feature = "serde")]
+#[cfg(all(feature = "serde", any(feature = "alloc", feature = "std")))]
 use serde_bytes::{ByteBuf as SerdeByteBuf, Bytes as SerdeBytes};
 
 use sha2::Sha512;
@@ -628,7 +628,7 @@ impl TryFrom<pkcs8::PrivateKeyInfo<'_>> for SigningKey {
     }
 }
 
-#[cfg(feature = "serde")]
+#[cfg(all(feature = "serde", any(feature = "alloc", feature = "std")))]
 impl Serialize for SigningKey {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -638,7 +638,7 @@ impl Serialize for SigningKey {
     }
 }
 
-#[cfg(feature = "serde")]
+#[cfg(all(feature = "serde", any(feature = "alloc", feature = "std")))]
 impl<'d> Deserialize<'d> for SigningKey {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where

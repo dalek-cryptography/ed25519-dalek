@@ -468,14 +468,14 @@ mod integrations {
     }
 }
 
-#[cfg(all(test, feature = "serde"))]
+#[cfg(all(test, feature = "serde", any(feature = "alloc", feature = "std")))]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(crate = "serde")]
 struct Demo {
     signing_key: SigningKey,
 }
 
-#[cfg(all(test, feature = "serde"))]
+#[cfg(all(test, feature = "serde", any(feature = "alloc", feature = "std")))]
 mod serialisation {
     use super::*;
 
