@@ -27,9 +27,9 @@ use sha2::Sha512;
 #[cfg(feature = "pkcs8")]
 use ed25519::pkcs8;
 
-#[cfg(feature = "serde")]
+#[cfg(all(feature = "serde", any(feature = "alloc", feature = "std")))]
 use serde::de::Error as SerdeError;
-#[cfg(feature = "serde")]
+#[cfg(all(feature = "serde", any(feature = "alloc", feature = "std")))]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(all(feature = "serde", any(feature = "alloc", feature = "std")))]
 use serde_bytes::{ByteBuf as SerdeByteBuf, Bytes as SerdeBytes};

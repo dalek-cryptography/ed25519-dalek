@@ -15,9 +15,9 @@ use ed25519::pkcs8;
 #[cfg(any(test, feature = "rand_core"))]
 use rand_core::CryptoRngCore;
 
-#[cfg(feature = "serde")]
+#[cfg(all(feature = "serde", any(feature = "alloc", feature = "std")))]
 use serde::de::Error as SerdeError;
-#[cfg(feature = "serde")]
+#[cfg(all(feature = "serde", any(feature = "alloc", feature = "std")))]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(all(feature = "serde", any(feature = "alloc", feature = "std")))]
 use serde_bytes::{ByteBuf as SerdeByteBuf, Bytes as SerdeBytes};
