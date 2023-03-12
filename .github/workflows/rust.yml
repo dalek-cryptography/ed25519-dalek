@@ -79,8 +79,9 @@ jobs:
         with:
           toolchain: stable
           targets: thumbv7em-none-eabi
-      - run: cargo build --target thumbv7em-none-eabi --release --no-default-features --features alloc
-      - run: cargo build --target thumbv7em-none-eabi --release --no-default-features --features "alloc digest rand_core batch zeroize pkcs8 serde"
+      - uses: taiki-e/install-action@cargo-hack
+      # This tests both alloc and no-alloc without std
+      - run: cargo hack build --target thumbv7em-none-eabi --release --each-feature --exclude-features std
 
   bench:
     name: Check that benchmarks compile
