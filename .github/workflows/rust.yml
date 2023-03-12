@@ -80,7 +80,7 @@ jobs:
           toolchain: stable
           targets: thumbv7em-none-eabi
       - run: cargo build --target thumbv7em-none-eabi --release --no-default-features --features alloc
-      - run: cargo build --target thumbv7em-none-eabi --release --no-default-features --features "alloc digest rand_core batch zeroize pkcs8"
+      - run: cargo build --target thumbv7em-none-eabi --release --no-default-features --features "alloc digest rand_core batch zeroize pkcs8 serde"
 
   bench:
     name: Check that benchmarks compile
