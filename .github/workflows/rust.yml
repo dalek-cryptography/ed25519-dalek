@@ -81,7 +81,8 @@ jobs:
           targets: thumbv7em-none-eabi
       - uses: taiki-e/install-action@cargo-hack
       # This tests both alloc and no-alloc without std
-      - run: cargo hack build --target thumbv7em-none-eabi --release --each-feature --exclude-features std
+      # TODO: serde pending PR#288
+      - run: cargo hack build --target thumbv7em-none-eabi --release --each-feature --exclude-features std,serde
 
   bench:
     name: Check that benchmarks compile
