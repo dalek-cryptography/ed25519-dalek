@@ -83,7 +83,7 @@ jobs:
       # No default features build
       - run: cargo build --target thumbv7em-none-eabi --release --no-default-features
       # TODO: serde pending PR#288
-      - run: cargo hack build --target thumbv7em-none-eabi --release --each-feature --exclude-features std,serde
+      - run: cargo hack build --target thumbv7em-none-eabi --release --each-feature --exclude-features default,std,serde
 
   bench:
     name: Check that benchmarks compile
