@@ -240,7 +240,7 @@ dependencies = [
 [[package]]
 name = "curve25519-dalek"
 version = "4.0.0-rc.1"
-source = "git+ssh://git@github.com/rozbb/curve25519-dalek.git?branch=scalar-always-reduced#5d1aae2b391d38c3a3abd7776edbe6499cc1dc8d"
+source = "git+https://github.com/rozbb/curve25519-dalek.git?branch=scalar-always-reduced#5d1aae2b391d38c3a3abd7776edbe6499cc1dc8d"
 dependencies = [
  "cfg-if",
  "digest",
