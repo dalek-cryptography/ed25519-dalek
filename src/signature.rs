@@ -76,6 +76,8 @@ fn check_scalar(bytes: [u8; 32]) -> Result<Scalar, SignatureError> {
         return Err(InternalError::ScalarFormat.into());
     }
 
+    // You cannot do arithmetic with scalars construct with Scalar::from_bits. We only use this
+    // scalar for EdwardsPoint::vartime_double_scalar_mul_basepoint, which is an accepted usecase.
     Ok(Scalar::from_bits(bytes))
 }
 
