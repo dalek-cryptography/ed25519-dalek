@@ -29,7 +29,7 @@ use curve25519_dalek::digest::generic_array::typenum::U64;
 use curve25519_dalek::digest::Digest;
 use curve25519_dalek::edwards::CompressedEdwardsY;
 use curve25519_dalek::edwards::EdwardsPoint;
-use curve25519_dalek::scalar::Scalar;
+use curve25519_dalek::scalar::{clamp_integer, Scalar};
 
 use ed25519::signature::{KeypairRef, Signer, Verifier};
 
@@ -688,6 +688,10 @@ impl<'d> Deserialize<'d> for SigningKey {
 // better-designed, Schnorr-based signature scheme, see Trevor Perrin's work on
 // "generalised EdDSA" and "VXEdDSA".
 pub(crate) struct ExpandedSecretKey {
+    // `key_bytes` and `key` are separate, because the public key is computed as an unreduced
+    // scalar multiplication (ie `mul_base_clamped`), whereas the signing operations are done
+    // modulo l.
+    pub(crate) key_bytes: [u8; 32],
     pub(crate) key: Scalar,
     pub(crate) nonce: [u8; 32],
 }
@@ -695,6 +699,7 @@ pub(crate) struct ExpandedSecretKey {
 #[cfg(feature = "zeroize")]
 impl Drop for ExpandedSecretKey {
     fn drop(&mut self) {
+        self.key_bytes.zeroize();
         self.key.zeroize();
         self.nonce.zeroize()
     }
@@ -707,9 +712,15 @@ impl From<&SecretKey> for ExpandedSecretKey {
         // TODO: Use bytes.split_array_ref once it’s in MSRV.
         let (lower, upper) = hash.split_at(32);
 
+        // Clamp the lower bytes. This is the key integer.
         // The try_into here converts to fixed-size array
+        let key_bytes = clamp_integer(lower.try_into().unwrap());
+        // For signing, we'll need the integer as a Scalar
+        let key = Scalar::from_bytes_mod_order(key_bytes);
+
         ExpandedSecretKey {
-            key: Scalar::from_bits_clamped(lower.try_into().unwrap()),
+            key_bytes,
+            key,
             nonce: upper.try_into().unwrap(),
         }
     }

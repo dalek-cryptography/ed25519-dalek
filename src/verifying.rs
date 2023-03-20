@@ -66,7 +66,7 @@ pub struct VerifyingKey {
 }
 
 impl Debug for VerifyingKey {
-    fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "VerifyingKey({:?}), {:?})", self.compressed, self.point)
     }
 }
@@ -92,8 +92,7 @@ impl PartialEq<VerifyingKey> for VerifyingKey {
 impl From<&ExpandedSecretKey> for VerifyingKey {
     /// Derive this public key from its corresponding `ExpandedSecretKey`.
     fn from(expanded_secret_key: &ExpandedSecretKey) -> VerifyingKey {
-        let bits: [u8; 32] = expanded_secret_key.key.to_bytes();
-        VerifyingKey::clamp_and_mul_base(bits)
+        VerifyingKey::clamp_and_mul_base(expanded_secret_key.key_bytes)
     }
 }
 
@@ -183,8 +182,7 @@ impl VerifyingKey {
     /// Internal utility function for clamping a scalar representation and multiplying by the
     /// basepont to produce a public key.
     fn clamp_and_mul_base(bits: [u8; 32]) -> VerifyingKey {
-        let scalar = Scalar::from_bits_clamped(bits);
-        let point = EdwardsPoint::mul_base(&scalar);
+        let point = EdwardsPoint::mul_base_clamped(bits);
         let compressed = point.compress();
 
         // Invariant: VerifyingKey.1 is always the decompression of VerifyingKey.0
