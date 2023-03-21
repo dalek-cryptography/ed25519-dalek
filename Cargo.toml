@@ -34,7 +34,7 @@ sha2 = { version = "0.10", default-features = false }
 merlin = { version = "3", default-features = false, optional = true }
 rand_core = { version = "0.6.4", default-features = false, optional = true }
 serde = { version = "1.0", default-features = false, optional = true }
-serde_bytes = { version = "0.11", optional = true }
+serde_bytes = { version = "0.11", default-features = false, optional = true }
 zeroize = { version = "1.5", default-features = false, optional = true }
 
 [dev-dependencies]
@@ -46,7 +46,7 @@ criterion = { version = "0.4", features = ["html_reports"] }
 hex-literal = "0.3"
 rand = "0.8"
 rand_core = { version = "0.6.4", default-features = false }
-serde = { version = "1.0", features = ["derive"] }
+serde = { version = "1.0", default-features = false, features = ["derive"] }
 toml = { version = "0.5" }
 
 [[bench]]
@@ -56,8 +56,8 @@ required-features = ["rand_core"]
 
 [features]
 default = ["fast", "std", "zeroize"]
-alloc = ["curve25519-dalek/alloc", "ed25519/alloc", "serde?/alloc", "zeroize/alloc"]
-std = ["alloc", "ed25519/std", "serde?/std", "sha2/std"]
+alloc = ["curve25519-dalek/alloc", "ed25519/alloc", "serde?/alloc", "serde_bytes?/alloc", "zeroize/alloc"]
+std = ["alloc", "ed25519/std", "serde?/std", "serde_bytes?/std", "sha2/std"]
 
 asm = ["sha2/asm"]
 batch = ["alloc", "merlin", "rand_core"]
@@ -68,5 +68,5 @@ legacy_compatibility = []
 pkcs8 = ["ed25519/pkcs8"]
 pem = ["alloc", "ed25519/pem", "pkcs8"]
 rand_core = ["dep:rand_core"]
-serde = ["dep:serde", "serde_bytes", "ed25519/serde"]
+serde = ["dep:serde", "ed25519/serde", "serde_bytes"]
 zeroize = ["dep:zeroize", "curve25519-dalek/zeroize"]
