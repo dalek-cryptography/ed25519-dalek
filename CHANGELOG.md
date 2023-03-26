@@ -34,3 +34,4 @@ Entries are listed in reverse chronological order per undeprecated major series.
 * Impl `Hash` for `VerifyingKey`
 * Impl `Clone`, `Drop`, and `ZeroizeOnDrop` for `SigningKey`
 * Remove `rand` dependency
+* Improve key deserialization diagnostics
