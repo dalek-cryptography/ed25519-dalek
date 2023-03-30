@@ -545,13 +545,6 @@ impl From<&SecretKey> for SigningKey {
     }
 }
 
-impl From<&SigningKey> for Scalar {
-    #[inline]
-    fn from(signing_key: &SigningKey) -> Self {
-        signing_key.to_scalar()
-    }
-}
-
 impl TryFrom<&[u8]> for SigningKey {
     type Error = SignatureError;
 

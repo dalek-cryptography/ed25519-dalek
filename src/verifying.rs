@@ -480,12 +480,6 @@ where
     }
 }
 
-impl From<&VerifyingKey> for MontgomeryPoint {
-    fn from(verifying_key: &VerifyingKey) -> MontgomeryPoint {
-        verifying_key.to_montgomery()
-    }
-}
-
 impl TryFrom<&[u8]> for VerifyingKey {
     type Error = SignatureError;
 
