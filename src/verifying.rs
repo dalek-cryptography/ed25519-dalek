@@ -424,6 +424,13 @@ impl VerifyingKey {
     ///
     /// This is useful for systems which perform X25519 Diffie-Hellman using
     /// Ed25519 keys.
+    ///
+    /// When possible, it's recommended to use separate keys for signing and
+    /// Diffie-Hellman.
+    ///
+    /// For more information on the security of systems which use the same keys
+    /// for both signing and Diffie-Hellman, see the paper
+    /// [On using the same key pair for Ed25519 and an X25519 based KEM](https://eprint.iacr.org/2021/509.pdf).
     pub fn to_montgomery(&self) -> MontgomeryPoint {
         self.point.to_montgomery()
     }
