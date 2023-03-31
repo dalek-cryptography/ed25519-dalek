@@ -239,8 +239,8 @@ dependencies = [
 
 [[package]]
 name = "curve25519-dalek"
-version = "4.0.0-rc.1"
-source = "git+https://github.com/rozbb/curve25519-dalek.git?branch=scalar-always-reduced#5d1aae2b391d38c3a3abd7776edbe6499cc1dc8d"
+version = "4.0.0-rc.2"
+source = "git+https://github.com/dalek-cryptography/curve25519-dalek.git?rev=f460ae149b0000695205cc78f560d74a2d3918eb#f460ae149b0000695205cc78f560d74a2d3918eb"
 dependencies = [
  "cfg-if",
  "digest",
@@ -286,7 +286,7 @@ dependencies = [
 
 [[package]]
 name = "ed25519-dalek"
-version = "2.0.0-pre.0"
+version = "2.0.0-rc.2"
 dependencies = [
  "bincode",
  "criterion",
@@ -313,9 +313,9 @@ checksum = "7fcaabb2fef8c910e7f4c7ce9f67a1283a1715879a7c230ca9d6d1ae31f16d91"
 
 [[package]]
 name = "fiat-crypto"
-version = "0.1.17"
+version = "0.1.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a214f5bb88731d436478f3ae1f8a277b62124089ba9fb67f4f93fb100ef73c90"
+checksum = "93ace6ec7cc19c8ed33a32eaa9ea692d7faea05006b5356b9e2b668ec4bc3955"
 
 [[package]]
 name = "generic-array"
