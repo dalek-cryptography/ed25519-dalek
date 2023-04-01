@@ -39,7 +39,11 @@ jobs:
       - run: cargo test --target ${{ matrix.target }} --features digest,rand_core
       - run: cargo test --target ${{ matrix.target }} --features serde
       - run: cargo test --target ${{ matrix.target }} --features pem
-      - run: cargo test --target ${{ matrix.target }} --all-features
+      # Can't use --all-features because of legacy_compatibility
+      - run: cargo test --target ${{ matrix.target }} --features asm,batch,digest,pem,rand_core,serde
+      - env:
+          RUSTFLAGS: '-D warnings -A deprecated' # legacy_compatibility triggers a deprecation warning
+        run: cargo test --target ${{ matrix.target }} --features legacy_compatibility
 
   build-simd:
     name: Test simd backend (nightly)
@@ -82,7 +86,10 @@ jobs:
       - uses: taiki-e/install-action@cargo-hack
       # No default features build
       - run: cargo build --target thumbv7em-none-eabi --release --no-default-features
-      - run: cargo hack build --target thumbv7em-none-eabi --release --each-feature --exclude-features default,std
+      - run: cargo hack build --target thumbv7em-none-eabi --release --each-feature --exclude-features default,std,legacy_compatibility
+      - env:
+          RUSTFLAGS: '-D warnings -A deprecated' # legacy_compatibility triggers a deprecation warning
+        run: cargo build --target thumbv7em-none-eabi --release --features "legacy_compatibility"
 
   bench:
     name: Check that benchmarks compile
@@ -119,4 +126,6 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-      - run: cargo doc --all-features
+      - env:
+          RUSTFLAGS: '-D warnings -A deprecated' # legacy_compatibility triggers a deprecation warning
+        run: cargo doc --all-features
