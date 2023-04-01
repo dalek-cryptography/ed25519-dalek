@@ -89,7 +89,7 @@ jobs:
       - run: cargo hack build --target thumbv7em-none-eabi --release --each-feature --exclude-features default,std,legacy_compatibility
       - env:
           RUSTFLAGS: '-D warnings -A deprecated' # legacy_compatibility triggers a deprecation warning
-        run: cargo build --target thumbv7em-none-eabi --release --features "legacy_compatibility"
+        run: cargo build --target thumbv7em-none-eabi --release --no-default-features --features "legacy_compatibility"
 
   bench:
     name: Check that benchmarks compile
