@@ -39,7 +39,7 @@ jobs:
       - run: cargo test --target ${{ matrix.target }} --features digest,rand_core
       - run: cargo test --target ${{ matrix.target }} --features serde
       - run: cargo test --target ${{ matrix.target }} --features pem
-        run: cargo test --target ${{ matrix.target }} --all-features
+      - run: cargo test --target ${{ matrix.target }} --all-features
 
   build-simd:
     name: Test simd backend (nightly)
@@ -119,6 +119,4 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-      - env:
-          RUSTFLAGS: '-D warnings -A deprecated' # legacy_compatibility triggers a deprecation warning
-        run: cargo doc --all-features
+      - run: cargo doc --all-features
