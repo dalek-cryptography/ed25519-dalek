@@ -63,6 +63,10 @@ impl Debug for InternalSignature {
     }
 }
 
+#[deprecated(
+    since = "2.0.0",
+    note = "The legacy_compatibility feature permits signature malleability. See README."
+)]
 #[cfg(feature = "legacy_compatibility")]
 #[inline(always)]
 fn check_scalar(bytes: [u8; 32]) -> Result<Scalar, SignatureError> {
