@@ -747,7 +747,7 @@ impl<'d> Deserialize<'d> for SigningKey {
 // better-designed, Schnorr-based signature scheme, see Trevor Perrin's work on
 // "generalised EdDSA" and "VXEdDSA".
 pub(crate) struct ExpandedSecretKey {
-    // `key_bytes` and `key` are separate, because the public key is computed as an unreduced
+    // `scalar_bytes` and `scalar` are separate, because the public key is computed as an unreduced
     // scalar multiplication (ie `mul_base_clamped`), whereas the signing operations are done
     // modulo l.
     pub(crate) scalar_bytes: [u8; 32],
@@ -773,7 +773,8 @@ impl From<&SecretKey> for ExpandedSecretKey {
 
         // The lower bytes are the scalar. The try_into here converts to fixed-size array
         let scalar_bytes = lower.try_into().unwrap();
-        // For signing, we'll need the integer, clamped, and converted to a Scalar
+        // For signing, we'll need the integer, clamped, and converted to a Scalar. See
+        // PureEdDSA.keygen in RFC 8032 Appendix A.
         let scalar = Scalar::from_bytes_mod_order(clamp_integer(scalar_bytes));
 
         ExpandedSecretKey {
