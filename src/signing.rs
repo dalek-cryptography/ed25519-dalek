@@ -703,7 +703,7 @@ impl<'d> Deserialize<'d> for SigningKey {
 /// `SecretKey`.  The output digest is then split in half, the lower half being
 /// the actual `key` used to sign messages, after twiddling with some bits.¹ The
 /// upper half is used a sort of half-baked, ill-designed² pseudo-domain-separation
-/// "nonce"-like thing, which is used during signature production by
+/// prefix thing, which is used during signature production by
 /// concatenating it with the message to be signed before the message is hashed.
 ///
 /// Instances of this secret are automatically overwritten with zeroes when they
@@ -737,14 +737,14 @@ impl<'d> Deserialize<'d> for SigningKey {
 // "generalised EdDSA" and "VXEdDSA".
 pub(crate) struct ExpandedSecretKey {
     pub(crate) scalar: Scalar,
-    pub(crate) nonce: [u8; 32],
+    pub(crate) hash_prefix: [u8; 32],
 }
 
 #[cfg(feature = "zeroize")]
 impl Drop for ExpandedSecretKey {
     fn drop(&mut self) {
         self.scalar.zeroize();
-        self.nonce.zeroize()
+        self.hash_prefix.zeroize()
     }
 }
 
@@ -758,7 +758,7 @@ impl From<&SecretKey> for ExpandedSecretKey {
         // The try_into here converts to fixed-size array
         ExpandedSecretKey {
             scalar: Scalar::from_bits_clamped(lower.try_into().unwrap()),
-            nonce: upper.try_into().unwrap(),
+            hash_prefix: upper.try_into().unwrap(),
         }
     }
 }
@@ -766,7 +766,7 @@ impl From<&SecretKey> for ExpandedSecretKey {
 impl ExpandedSecretKey {
     /// Sign a message with this `ExpandedSecretKey`.
     pub(crate) fn sign(&self, message: &[u8], verifying_key: &VerifyingKey) -> Signature {
-        private_raw_sign(self.scalar, self.nonce, message, verifying_key)
+        private_raw_sign(self.scalar, self.hash_prefix, message, verifying_key)
     }
 
     /// Sign a `prehashed_message` with this `ExpandedSecretKey` using the
@@ -801,7 +801,7 @@ impl ExpandedSecretKey {
     {
         private_raw_sign_prehashed(
             self.scalar,
-            self.nonce,
+            self.hash_prefix,
             prehashed_message,
             verifying_key,
             context,
@@ -814,21 +814,21 @@ impl ExpandedSecretKey {
 //
 
 /// The plain, non-prehashed, signing function for Ed25519. `scalar` is the secret scalar of the
-/// signing key. `scalar and `nonce` are usually selected such that that `scalar || nonce = H(sk)`
-/// where `sk` is the signing key.
+/// signing key. `scalar and `hash_prefix` are usually selected such that that `scalar ||
+/// hash_prefix = H(sk)` where `sk` is the signing key.
 ///
 /// See docs on `raw_sign()` for more detail.
 #[allow(non_snake_case)]
 #[inline(always)]
 fn private_raw_sign(
     scalar: Scalar,
-    nonce: [u8; 32],
+    hash_prefix: [u8; 32],
     message: &[u8],
     verifying_key: &VerifyingKey,
 ) -> Signature {
     let mut h: Sha512 = Sha512::new();
 
-    h.update(nonce);
+    h.update(hash_prefix);
     h.update(message);
 
     let r = Scalar::from_hash(h);
@@ -845,8 +845,8 @@ fn private_raw_sign(
     InternalSignature { R, s }.into()
 }
 
-/// The prehashed signing function for Ed25519. `scalar` and `nonce` are usually selected such that
-/// `scalar || nonce = H(sk)` where `sk` is the signing key.
+/// The prehashed signing function for Ed25519. `scalar` and `hash_prefix` are usually selected
+/// such that `scalar || hash_prefix = H(sk)` where `sk` is the signing key.
 ///
 /// See docs on `raw_sign_prehashed()` for more detail.
 #[cfg(feature = "digest")]
@@ -854,7 +854,7 @@ fn private_raw_sign(
 #[inline(always)]
 fn private_raw_sign_prehashed<'a, D>(
     scalar: Scalar,
-    nonce: [u8; 32],
+    hash_prefix: [u8; 32],
     prehashed_message: D,
     verifying_key: &VerifyingKey,
     context: Option<&'a [u8]>,
@@ -893,7 +893,7 @@ where
         .chain_update([1]) // Ed25519ph
         .chain_update([ctx_len])
         .chain_update(ctx)
-        .chain_update(nonce)
+        .chain_update(hash_prefix)
         .chain_update(&prehash[..]);
 
     let r = Scalar::from_hash(h);
@@ -927,19 +927,19 @@ where
 /// # Inputs
 ///
 /// * `scalar` is the secret scalar of the signing key
-/// * `nonce` is the domain separator that, along with the message itself, is used to
+/// * `hash_prefix` is the domain separator that, along with the message itself, is used to
 ///   deterministically generate the `R` part of the signature.
 ///
-/// `scalar` and `nonce` are usually selected such that `scalar || nonce = H(sk)` where `sk` is the
-/// signing key
+/// `scalar` and `hash_prefix` are usually selected such that `scalar || hash_prefix = H(sk)` where
+/// `sk` is the signing key
 #[cfg(feature = "raw-sign")]
 fn raw_sign(
     scalar: Scalar,
-    nonce: [u8; 32],
+    hash_prefix: [u8; 32],
     message: &[u8],
     verifying_key: &VerifyingKey,
 ) -> Signature {
-    private_raw_sign(scalar, nonce, message, verifying_key)
+    private_raw_sign(scalar, hash_prefix, message, verifying_key)
 }
 
 /// Sign a `prehashed_message` with this `ExpandedSecretKey` using the Ed25519ph algorithm defined
@@ -952,7 +952,7 @@ fn raw_sign(
 /// # Inputs
 ///
 /// * `scalar` is the secret scalar of the signing key
-/// * `nonce` is the domain separator that, along with the prehashed message, is used to
+/// * `hash_prefix` is the domain separator that, along with the prehashed message, is used to
 ///   deterministically generate the `R` part of the signature.
 /// * `prehashed_message` is an instantiated hash digest with 512-bits of
 ///   output which has had the message to be signed previously fed into its
@@ -962,8 +962,8 @@ fn raw_sign(
 ///   which may be used to provide additional domain separation.  If not
 ///   set, this will default to an empty string.
 ///
-/// `scalar` and `nonce` are usually selected such that `scalar || nonce = H(sk)` where `sk` is the
-/// signing key
+/// `scalar` and `hash_prefix` are usually selected such that `scalar || hash_prefix = H(sk)` where
+/// `sk` is the signing key
 ///
 /// # Returns
 ///
@@ -976,7 +976,7 @@ fn raw_sign(
 #[allow(non_snake_case)]
 pub fn raw_sign_prehashed<'a, D>(
     scalar: Scalar,
-    nonce: [u8; 32],
+    hash_prefix: [u8; 32],
     prehashed_message: D,
     verifying_key: &VerifyingKey,
     context: Option<&'a [u8]>,
@@ -984,5 +984,11 @@ pub fn raw_sign_prehashed<'a, D>(
 where
     D: Digest<OutputSize = U64>,
 {
-    private_raw_sign_prehashed(scalar, nonce, prehashed_message, verifying_key, context)
+    private_raw_sign_prehashed(
+        scalar,
+        hash_prefix,
+        prehashed_message,
+        verifying_key,
+        context,
+    )
 }
