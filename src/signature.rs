@@ -63,10 +63,9 @@ impl Debug for InternalSignature {
     }
 }
 
-#[deprecated(
-    since = "2.0.0",
-    note = "The legacy_compatibility feature permits signature malleability. See README."
-)]
+/// Ensures that the scalar `s` of a signature is within the bounds [0, 2^253).
+///
+/// **Unsafe**: This version of `check_scalar` permits signature malleability. See README.
 #[cfg(feature = "legacy_compatibility")]
 #[inline(always)]
 fn check_scalar(bytes: [u8; 32]) -> Result<Scalar, SignatureError> {
@@ -82,10 +81,12 @@ fn check_scalar(bytes: [u8; 32]) -> Result<Scalar, SignatureError> {
 
     // You cannot do arithmetic with scalars construct with Scalar::from_bits. We only use this
     // scalar for EdwardsPoint::vartime_double_scalar_mul_basepoint, which is an accepted usecase.
+    // The `from_bits` method is deprecated because it's unsafe. We know this.
     #[allow(deprecated)]
     Ok(Scalar::from_bits(bytes))
 }
 
+/// Ensures that the scalar `s` of a signature is within the bounds [0, ℓ)
 #[cfg(not(feature = "legacy_compatibility"))]
 #[inline(always)]
 fn check_scalar(bytes: [u8; 32]) -> Result<Scalar, SignatureError> {
