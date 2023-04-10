@@ -765,25 +765,8 @@ impl From<&SecretKey> for ExpandedSecretKey {
 
 impl ExpandedSecretKey {
     /// Sign a message with this `ExpandedSecretKey`.
-    #[allow(non_snake_case)]
     pub(crate) fn sign(&self, message: &[u8], verifying_key: &VerifyingKey) -> Signature {
-        let mut h: Sha512 = Sha512::new();
-
-        h.update(self.nonce);
-        h.update(message);
-
-        let r = Scalar::from_hash(h);
-        let R: CompressedEdwardsY = EdwardsPoint::mul_base(&r).compress();
-
-        h = Sha512::new();
-        h.update(R.as_bytes());
-        h.update(verifying_key.as_bytes());
-        h.update(message);
-
-        let k = Scalar::from_hash(h);
-        let s: Scalar = (k * self.scalar) + r;
-
-        InternalSignature { R, s }.into()
+        private_raw_sign(self.scalar, self.nonce, message, verifying_key)
     }
 
     /// Sign a `prehashed_message` with this `ExpandedSecretKey` using the
@@ -807,7 +790,6 @@ impl ExpandedSecretKey {
     ///
     /// [rfc8032]: https://tools.ietf.org/html/rfc8032#section-5.1
     #[cfg(feature = "digest")]
-    #[allow(non_snake_case)]
     pub(crate) fn sign_prehashed<'a, D>(
         &self,
         prehashed_message: D,
@@ -817,55 +799,190 @@ impl ExpandedSecretKey {
     where
         D: Digest<OutputSize = U64>,
     {
-        let mut h: Sha512;
-        let mut prehash: [u8; 64] = [0u8; 64];
-
-        let ctx: &[u8] = context.unwrap_or(b""); // By default, the context is an empty string.
-
-        if ctx.len() > 255 {
-            return Err(SignatureError::from(InternalError::PrehashedContextLength));
-        }
-
-        let ctx_len: u8 = ctx.len() as u8;
-
-        // Get the result of the pre-hashed message.
-        prehash.copy_from_slice(prehashed_message.finalize().as_slice());
-
-        // This is the dumbest, ten-years-late, non-admission of fucking up the
-        // domain separation I have ever seen.  Why am I still required to put
-        // the upper half "prefix" of the hashed "secret key" in here?  Why
-        // can't the user just supply their own nonce and decide for themselves
-        // whether or not they want a deterministic signature scheme?  Why does
-        // the message go into what's ostensibly the signature domain separation
-        // hash?  Why wasn't there always a way to provide a context string?
-        //
-        // ...
-        //
-        // This is a really fucking stupid bandaid, and the damned scheme is
-        // still bleeding from malleability, for fuck's sake.
-        h = Sha512::new()
-            .chain_update(b"SigEd25519 no Ed25519 collisions")
-            .chain_update([1]) // Ed25519ph
-            .chain_update([ctx_len])
-            .chain_update(ctx)
-            .chain_update(self.nonce)
-            .chain_update(&prehash[..]);
-
-        let r = Scalar::from_hash(h);
-        let R: CompressedEdwardsY = EdwardsPoint::mul_base(&r).compress();
-
-        h = Sha512::new()
-            .chain_update(b"SigEd25519 no Ed25519 collisions")
-            .chain_update([1]) // Ed25519ph
-            .chain_update([ctx_len])
-            .chain_update(ctx)
-            .chain_update(R.as_bytes())
-            .chain_update(verifying_key.as_bytes())
-            .chain_update(&prehash[..]);
-
-        let k = Scalar::from_hash(h);
-        let s: Scalar = (k * self.scalar) + r;
-
-        Ok(InternalSignature { R, s }.into())
+        private_raw_sign_prehashed(
+            self.scalar,
+            self.nonce,
+            prehashed_message,
+            verifying_key,
+            context,
+        )
     }
+}
+
+//
+// Signing funcitons. These are private to this module unless explicitly exported.
+//
+
+/// The plain, non-prehashed, signing function for Ed25519. `scalar` is the secret scalar of the
+/// signing key. `scalar and `nonce` are usually selected such that that `scalar || nonce = H(sk)`
+/// where `sk` is the signing key.
+///
+/// See docs on `raw_sign()` for more detail.
+#[allow(non_snake_case)]
+#[inline(always)]
+fn private_raw_sign(
+    scalar: Scalar,
+    nonce: [u8; 32],
+    message: &[u8],
+    verifying_key: &VerifyingKey,
+) -> Signature {
+    let mut h: Sha512 = Sha512::new();
+
+    h.update(nonce);
+    h.update(message);
+
+    let r = Scalar::from_hash(h);
+    let R: CompressedEdwardsY = EdwardsPoint::mul_base(&r).compress();
+
+    h = Sha512::new();
+    h.update(R.as_bytes());
+    h.update(verifying_key.as_bytes());
+    h.update(message);
+
+    let k = Scalar::from_hash(h);
+    let s: Scalar = (k * scalar) + r;
+
+    InternalSignature { R, s }.into()
+}
+
+/// The prehashed signing function for Ed25519. `scalar` and `nonce` are usually selected such that
+/// `scalar || nonce = H(sk)` where `sk` is the signing key.
+///
+/// See docs on `raw_sign_prehashed()` for more detail.
+#[cfg(feature = "digest")]
+#[allow(non_snake_case)]
+#[inline(always)]
+fn private_raw_sign_prehashed<'a, D>(
+    scalar: Scalar,
+    nonce: [u8; 32],
+    prehashed_message: D,
+    verifying_key: &VerifyingKey,
+    context: Option<&'a [u8]>,
+) -> Result<Signature, SignatureError>
+where
+    D: Digest<OutputSize = U64>,
+{
+    let mut h: Sha512;
+    let mut prehash: [u8; 64] = [0u8; 64];
+
+    let ctx: &[u8] = context.unwrap_or(b""); // By default, the context is an empty string.
+
+    if ctx.len() > 255 {
+        return Err(SignatureError::from(InternalError::PrehashedContextLength));
+    }
+
+    let ctx_len: u8 = ctx.len() as u8;
+
+    // Get the result of the pre-hashed message.
+    prehash.copy_from_slice(prehashed_message.finalize().as_slice());
+
+    // This is the dumbest, ten-years-late, non-admission of fucking up the
+    // domain separation I have ever seen.  Why am I still required to put
+    // the upper half "prefix" of the hashed "secret key" in here?  Why
+    // can't the user just supply their own nonce and decide for themselves
+    // whether or not they want a deterministic signature scheme?  Why does
+    // the message go into what's ostensibly the signature domain separation
+    // hash?  Why wasn't there always a way to provide a context string?
+    //
+    // ...
+    //
+    // This is a really fucking stupid bandaid, and the damned scheme is
+    // still bleeding from malleability, for fuck's sake.
+    h = Sha512::new()
+        .chain_update(b"SigEd25519 no Ed25519 collisions")
+        .chain_update([1]) // Ed25519ph
+        .chain_update([ctx_len])
+        .chain_update(ctx)
+        .chain_update(nonce)
+        .chain_update(&prehash[..]);
+
+    let r = Scalar::from_hash(h);
+    let R: CompressedEdwardsY = EdwardsPoint::mul_base(&r).compress();
+
+    h = Sha512::new()
+        .chain_update(b"SigEd25519 no Ed25519 collisions")
+        .chain_update([1]) // Ed25519ph
+        .chain_update([ctx_len])
+        .chain_update(ctx)
+        .chain_update(R.as_bytes())
+        .chain_update(verifying_key.as_bytes())
+        .chain_update(&prehash[..]);
+
+    let k = Scalar::from_hash(h);
+    let s: Scalar = (k * scalar) + r;
+
+    Ok(InternalSignature { R, s }.into())
+}
+
+//
+// Exports
+//
+
+/// The plain, non-prehashed, signing function for Ed25519.
+///
+/// **Unsafe:** Do NOT use this function unless you absolutely must. Misuse of this function can
+/// expose your private key. See [here](https://github.com/MystenLabs/ed25519-unsafe-libs) for more
+/// details on this attack.
+///
+/// # Inputs
+///
+/// * `scalar` is the secret scalar of the signing key
+/// * `nonce` is the domain separator that, along with the message itself, is used to
+///   deterministically generate the `R` part of the signature.
+///
+/// `scalar` and `nonce` are usually selected such that `scalar || nonce = H(sk)` where `sk` is the
+/// signing key
+#[cfg(feature = "raw-sign")]
+fn raw_sign(
+    scalar: Scalar,
+    nonce: [u8; 32],
+    message: &[u8],
+    verifying_key: &VerifyingKey,
+) -> Signature {
+    private_raw_sign(scalar, nonce, message, verifying_key)
+}
+
+/// Sign a `prehashed_message` with this `ExpandedSecretKey` using the Ed25519ph algorithm defined
+/// in [RFC8032 §5.1][rfc8032].
+///
+/// **Unsafe:** Do NOT use this function unless you absolutely must. Misuse of this function can
+/// expose your private key. See [here](https://github.com/MystenLabs/ed25519-unsafe-libs) for more
+/// details on this attack.
+///
+/// # Inputs
+///
+/// * `scalar` is the secret scalar of the signing key
+/// * `nonce` is the domain separator that, along with the prehashed message, is used to
+///   deterministically generate the `R` part of the signature.
+/// * `prehashed_message` is an instantiated hash digest with 512-bits of
+///   output which has had the message to be signed previously fed into its
+///   state.
+/// * `verifying_key` is a [`VerifyingKey`] which corresponds to this secret key.
+/// * `context` is an optional context string, up to 255 bytes inclusive,
+///   which may be used to provide additional domain separation.  If not
+///   set, this will default to an empty string.
+///
+/// `scalar` and `nonce` are usually selected such that `scalar || nonce = H(sk)` where `sk` is the
+/// signing key
+///
+/// # Returns
+///
+/// A `Result` whose `Ok` value is an Ed25519ph [`Signature`] on the
+/// `prehashed_message` if the context was 255 bytes or less, otherwise
+/// a `SignatureError`.
+///
+/// [rfc8032]: https://tools.ietf.org/html/rfc8032#section-5.1
+#[cfg(all(feature = "digest", feature = "raw-sign"))]
+#[allow(non_snake_case)]
+pub fn raw_sign_prehashed<'a, D>(
+    scalar: Scalar,
+    nonce: [u8; 32],
+    prehashed_message: D,
+    verifying_key: &VerifyingKey,
+    context: Option<&'a [u8]>,
+) -> Result<Signature, SignatureError>
+where
+    D: Digest<OutputSize = U64>,
+{
+    private_raw_sign_prehashed(scalar, nonce, prehashed_message, verifying_key, context)
 }
