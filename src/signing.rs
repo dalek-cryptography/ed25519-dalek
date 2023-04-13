@@ -737,14 +737,14 @@ impl<'d> Deserialize<'d> for SigningKey {
 // "generalised EdDSA" and "VXEdDSA".
 pub(crate) struct ExpandedSecretKey {
     pub(crate) scalar: Scalar,
-    pub(crate) nonce: [u8; 32],
+    pub(crate) prefix: [u8; 32],
 }
 
 #[cfg(feature = "zeroize")]
 impl Drop for ExpandedSecretKey {
     fn drop(&mut self) {
         self.scalar.zeroize();
-        self.nonce.zeroize()
+        self.prefix.zeroize()
     }
 }
 
@@ -758,7 +758,7 @@ impl From<&SecretKey> for ExpandedSecretKey {
         // The try_into here converts to fixed-size array
         ExpandedSecretKey {
             scalar: Scalar::from_bits_clamped(lower.try_into().unwrap()),
-            nonce: upper.try_into().unwrap(),
+            prefix: upper.try_into().unwrap(),
         }
     }
 }
@@ -769,7 +769,7 @@ impl ExpandedSecretKey {
     pub(crate) fn sign(&self, message: &[u8], verifying_key: &VerifyingKey) -> Signature {
         let mut h: Sha512 = Sha512::new();
 
-        h.update(self.nonce);
+        h.update(self.prefix);
         h.update(message);
 
         let r = Scalar::from_hash(h);
@@ -848,7 +848,7 @@ impl ExpandedSecretKey {
             .chain_update([1]) // Ed25519ph
             .chain_update([ctx_len])
             .chain_update(ctx)
-            .chain_update(self.nonce)
+            .chain_update(self.prefix)
             .chain_update(&prehash[..]);
 
         let r = Scalar::from_hash(h);
