@@ -266,6 +266,8 @@ mod verifying;
 
 #[cfg(feature = "hazmat")]
 pub mod hazmat;
+#[cfg(not(feature = "hazmat"))]
+mod hazmat;
 
 #[cfg(feature = "digest")]
 pub use curve25519_dalek::digest::Digest;

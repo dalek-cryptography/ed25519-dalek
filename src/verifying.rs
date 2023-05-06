@@ -13,13 +13,12 @@ use core::convert::TryFrom;
 use core::fmt::Debug;
 use core::hash::{Hash, Hasher};
 
-#[cfg(feature = "digest")]
-use curve25519_dalek::digest::generic_array::typenum::U64;
-use curve25519_dalek::digest::Digest;
-use curve25519_dalek::edwards::CompressedEdwardsY;
-use curve25519_dalek::edwards::EdwardsPoint;
-use curve25519_dalek::montgomery::MontgomeryPoint;
-use curve25519_dalek::scalar::Scalar;
+use curve25519_dalek::{
+    digest::{generic_array::typenum::U64, Digest},
+    edwards::{CompressedEdwardsY, EdwardsPoint},
+    montgomery::MontgomeryPoint,
+    scalar::Scalar,
+};
 
 use ed25519::signature::Verifier;
 
@@ -36,10 +35,13 @@ use crate::context::Context;
 #[cfg(feature = "digest")]
 use signature::DigestVerifier;
 
-use crate::constants::*;
-use crate::errors::*;
-use crate::signature::*;
-use crate::signing::*;
+use crate::{
+    constants::PUBLIC_KEY_LENGTH,
+    errors::{InternalError, SignatureError},
+    hazmat::ExpandedSecretKey,
+    signature::InternalSignature,
+    signing::SigningKey,
+};
 
 /// An ed25519 public key.
 ///
@@ -255,17 +257,24 @@ impl VerifyingKey {
     /// # Returns
     ///
     /// Returns `true` if the `signature` was a valid signature created by this
-    /// `Keypair` on the `prehashed_message`.
+    /// [`SigningKey`] on the `prehashed_message`.
+    ///
+    /// # Note
+    ///
+    /// The RFC only permits SHA-512 to be used for prehashing, i.e., `MsgDigest = Sha512`. This
+    /// function technically works, and is probably safe to use, with any secure hash function with
+    /// 512-bit digests, but anything outside of SHA-512 is NOT specification-compliant. We expose
+    /// [`crate::Sha512`] for user convenience.
     #[cfg(feature = "digest")]
     #[allow(non_snake_case)]
-    pub fn verify_prehashed<D>(
+    pub fn verify_prehashed<MsgDigest>(
         &self,
-        prehashed_message: D,
+        prehashed_message: MsgDigest,
         context: Option<&[u8]>,
         signature: &ed25519::Signature,
     ) -> Result<(), SignatureError>
     where
-        D: Digest<OutputSize = U64>,
+        MsgDigest: Digest<OutputSize = U64>,
     {
         let signature = InternalSignature::try_from(signature)?;
 
@@ -389,17 +398,24 @@ impl VerifyingKey {
     /// # Returns
     ///
     /// Returns `true` if the `signature` was a valid signature created by this
-    /// `Keypair` on the `prehashed_message`.
+    /// [`SigningKey`] on the `prehashed_message`.
+    ///
+    /// # Note
+    ///
+    /// The RFC only permits SHA-512 to be used for prehashing, i.e., `MsgDigest = Sha512`. This
+    /// function technically works, and is probably safe to use, with any secure hash function with
+    /// 512-bit digests, but anything outside of SHA-512 is NOT specification-compliant. We expose
+    /// [`crate::Sha512`] for user convenience.
     #[cfg(feature = "digest")]
     #[allow(non_snake_case)]
-    pub fn verify_prehashed_strict<D>(
+    pub fn verify_prehashed_strict<MsgDigest>(
         &self,
-        prehashed_message: D,
+        prehashed_message: MsgDigest,
         context: Option<&[u8]>,
         signature: &ed25519::Signature,
     ) -> Result<(), SignatureError>
     where
-        D: Digest<OutputSize = U64>,
+        MsgDigest: Digest<OutputSize = U64>,
     {
         let signature = InternalSignature::try_from(signature)?;
 
@@ -466,13 +482,13 @@ impl Verifier<ed25519::Signature> for VerifyingKey {
 
 /// Equivalent to [`VerifyingKey::verify_prehashed`] with `context` set to [`None`].
 #[cfg(feature = "digest")]
-impl<D> DigestVerifier<D, ed25519::Signature> for VerifyingKey
+impl<MsgDigest> DigestVerifier<MsgDigest, ed25519::Signature> for VerifyingKey
 where
-    D: Digest<OutputSize = U64>,
+    MsgDigest: Digest<OutputSize = U64>,
 {
     fn verify_digest(
         &self,
-        msg_digest: D,
+        msg_digest: MsgDigest,
         signature: &ed25519::Signature,
     ) -> Result<(), SignatureError> {
         self.verify_prehashed(msg_digest, None, signature)
@@ -482,13 +498,13 @@ where
 /// Equivalent to [`VerifyingKey::verify_prehashed`] with `context` set to [`Some`]
 /// containing `self.value()`.
 #[cfg(feature = "digest")]
-impl<D> DigestVerifier<D, ed25519::Signature> for Context<'_, '_, VerifyingKey>
+impl<MsgDigest> DigestVerifier<MsgDigest, ed25519::Signature> for Context<'_, '_, VerifyingKey>
 where
-    D: Digest<OutputSize = U64>,
+    MsgDigest: Digest<OutputSize = U64>,
 {
     fn verify_digest(
         &self,
-        msg_digest: D,
+        msg_digest: MsgDigest,
         signature: &ed25519::Signature,
     ) -> Result<(), SignatureError> {
         self.key()

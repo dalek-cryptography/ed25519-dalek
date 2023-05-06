@@ -8,17 +8,18 @@
 //! Failure to use them correctly can lead to catastrophic failures including **full private key
 //! recovery.**
 
-#[cfg(feature = "digest")]
-use crate::signing::private_raw_sign_prehashed;
-use crate::{signing::private_raw_sign, InternalError, Signature, SignatureError, VerifyingKey};
+use crate::{InternalError, Signature, SignatureError, VerifyingKey};
 
-#[cfg(feature = "digest")]
-use curve25519_dalek::digest::{generic_array::typenum::U64, Digest};
-use curve25519_dalek::Scalar;
+use curve25519_dalek::{
+    digest::{generic_array::typenum::U64, Digest},
+    Scalar,
+};
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Contains the secret scalar and domain separator used for generating signatures.
+///
+/// This is used internally for signing.
 ///
 /// In the usual Ed25519 signing algorithm, `scalar` and `hash_prefix` are defined such that
 /// `scalar || hash_prefix = H(sk)` where `sk` is the signing key and `H` is SHA-512.
@@ -44,6 +45,8 @@ impl Drop for ExpandedSecretKey {
 #[cfg(feature = "zeroize")]
 impl ZeroizeOnDrop for ExpandedSecretKey {}
 
+// Some conversion methods for `ExpandedSecretKey`. The signing methods are defined in
+// `signing.rs`, since we need them even when `not(feature = "hazmat")`
 impl ExpandedSecretKey {
     /// Convert this `ExpandedSecretKey` into an array of 64 bytes.
     pub fn to_bytes(&self) -> [u8; 64] {
@@ -81,19 +84,29 @@ impl ExpandedSecretKey {
     }
 }
 
-/// Compute an ordinary Ed25519 signature over the given message.
+/// Compute an ordinary Ed25519 signature over the given message. `SigDigest` is the digest used to
+/// calculate the pseudorandomness needed for signing. This is SHA-512 in Ed25519.
 ///
 /// # ⚠️  Unsafe
 ///
 /// Do NOT use this function unless you absolutely must. Using the wrong values in
 /// `ExpandedSecretKey` can leak your signing key. See
 /// [here](https://github.com/MystenLabs/ed25519-unsafe-libs) for more details on this attack.
-pub fn raw_sign(sk: ExpandedSecretKey, message: &[u8], verifying_key: &VerifyingKey) -> Signature {
-    private_raw_sign(sk.scalar, sk.hash_prefix, message, verifying_key)
+pub fn raw_sign<SigDigest>(
+    esk: ExpandedSecretKey,
+    message: &[u8],
+    verifying_key: &VerifyingKey,
+) -> Signature
+where
+    SigDigest: Digest<OutputSize = U64>,
+{
+    esk.raw_sign::<SigDigest>(message, verifying_key)
 }
 
 /// Compute a signature over the given prehashed message, the Ed25519ph algorithm defined in
-/// [RFC8032 §5.1][rfc8032].
+/// [RFC8032 §5.1][rfc8032]. `MsgDigest` is the digest function used to hash the signed message.
+/// `SigDigest` is the digest function used to calculate the pseudorandomness needed for signing.
+/// These are both SHA-512 in Ed25519.
 ///
 /// # ⚠️  Unsafe
 //
@@ -125,7 +138,7 @@ pub fn raw_sign(sk: ExpandedSecretKey, message: &[u8], verifying_key: &Verifying
 #[cfg(feature = "digest")]
 #[allow(non_snake_case)]
 pub fn raw_sign_prehashed<'a, D>(
-    sk: ExpandedSecretKey,
+    esk: ExpandedSecretKey,
     prehashed_message: D,
     verifying_key: &VerifyingKey,
     context: Option<&'a [u8]>,
@@ -133,11 +146,5 @@ pub fn raw_sign_prehashed<'a, D>(
 where
     D: Digest<OutputSize = U64>,
 {
-    private_raw_sign_prehashed(
-        sk.scalar,
-        sk.hash_prefix,
-        prehashed_message,
-        verifying_key,
-        context,
-    )
+    esk.raw_sign_prehashed(prehashed_message, verifying_key, context)
 }
