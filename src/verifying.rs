@@ -100,6 +100,15 @@ impl From<&SigningKey> for VerifyingKey {
     }
 }
 
+impl From<EdwardsPoint> for VerifyingKey {
+    fn from(point: EdwardsPoint) -> VerifyingKey {
+        VerifyingKey {
+            point,
+            compressed: point.compress(),
+        }
+    }
+}
+
 impl VerifyingKey {
     /// Convert this public key to a byte array.
     #[inline]
