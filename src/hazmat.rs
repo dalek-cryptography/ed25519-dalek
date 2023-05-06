@@ -15,7 +15,8 @@ use crate::{signing::private_raw_sign, InternalError, Signature, SignatureError,
 #[cfg(feature = "digest")]
 use curve25519_dalek::digest::{generic_array::typenum::U64, Digest};
 use curve25519_dalek::Scalar;
-use zeroize::Zeroize;
+#[cfg(feature = "zeroize")]
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Contains the secret scalar and domain separator used for generating signatures.
 ///
@@ -32,12 +33,16 @@ pub struct ExpandedSecretKey {
     pub hash_prefix: [u8; 32],
 }
 
+#[cfg(feature = "zeroize")]
 impl Drop for ExpandedSecretKey {
     fn drop(&mut self) {
         self.scalar.zeroize();
         self.hash_prefix.zeroize()
     }
 }
+
+#[cfg(feature = "zeroize")]
+impl ZeroizeOnDrop for ExpandedSecretKey {}
 
 impl ExpandedSecretKey {
     /// Convert this `ExpandedSecretKey` into an array of 64 bytes.
