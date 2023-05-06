@@ -8,15 +8,13 @@
 //! Failure to use them correctly can lead to catastrophic failures including **full private key
 //! recovery.**
 
-use crate::{
-    signing::{private_raw_sign, private_raw_sign_prehashed},
-    InternalError, Signature, SignatureError, VerifyingKey,
-};
+#[cfg(feature = "digest")]
+use crate::signing::private_raw_sign_prehashed;
+use crate::{signing::private_raw_sign, InternalError, Signature, SignatureError, VerifyingKey};
 
-use curve25519_dalek::{
-    digest::{generic_array::typenum::U64, Digest},
-    Scalar,
-};
+#[cfg(feature = "digest")]
+use curve25519_dalek::digest::{generic_array::typenum::U64, Digest};
+use curve25519_dalek::Scalar;
 use zeroize::Zeroize;
 
 /// Contains the secret scalar and domain separator used for generating signatures.
