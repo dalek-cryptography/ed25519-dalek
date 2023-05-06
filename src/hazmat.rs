@@ -8,14 +8,18 @@
 //! Failure to use them correctly can lead to catastrophic failures including **full private key
 //! recovery.**
 
-use crate::{InternalError, Signature, SignatureError, VerifyingKey};
+use crate::{InternalError, SignatureError};
 
-use curve25519_dalek::{
-    digest::{generic_array::typenum::U64, Digest},
-    Scalar,
-};
+use curve25519_dalek::Scalar;
+
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
+
+// These are used in the functions that are made public when the hazmat feature is set
+#[cfg(feature = "hazmat")]
+use crate::{Signature, VerifyingKey};
+#[cfg(feature = "hazmat")]
+use curve25519_dalek::digest::{generic_array::typenum::U64, Digest};
 
 /// Contains the secret scalar and domain separator used for generating signatures.
 ///
@@ -92,6 +96,7 @@ impl ExpandedSecretKey {
 /// Do NOT use this function unless you absolutely must. Using the wrong values in
 /// `ExpandedSecretKey` can leak your signing key. See
 /// [here](https://github.com/MystenLabs/ed25519-unsafe-libs) for more details on this attack.
+#[cfg(feature = "hazmat")]
 pub fn raw_sign<SigDigest>(
     esk: ExpandedSecretKey,
     message: &[u8],
@@ -135,16 +140,17 @@ where
 /// a `SignatureError`.
 ///
 /// [rfc8032]: https://tools.ietf.org/html/rfc8032#section-5.1
-#[cfg(feature = "digest")]
+#[cfg(all(feature = "hazmat", feature = "digest"))]
 #[allow(non_snake_case)]
-pub fn raw_sign_prehashed<'a, D>(
+pub fn raw_sign_prehashed<'a, MsgDigest, SigDigest>(
     esk: ExpandedSecretKey,
-    prehashed_message: D,
+    prehashed_message: MsgDigest,
     verifying_key: &VerifyingKey,
     context: Option<&'a [u8]>,
 ) -> Result<Signature, SignatureError>
 where
-    D: Digest<OutputSize = U64>,
+    MsgDigest: Digest<OutputSize = U64>,
+    SigDigest: Digest<OutputSize = U64>,
 {
-    esk.raw_sign_prehashed(prehashed_message, verifying_key, context)
+    esk.raw_sign_prehashed::<MsgDigest, SigDigest>(prehashed_message, verifying_key, context)
 }

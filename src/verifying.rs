@@ -13,8 +13,10 @@ use core::convert::TryFrom;
 use core::fmt::Debug;
 use core::hash::{Hash, Hasher};
 
+#[cfg(feature = "digest")]
+use curve25519_dalek::digest::generic_array::typenum::U64;
 use curve25519_dalek::{
-    digest::{generic_array::typenum::U64, Digest},
+    digest::Digest,
     edwards::{CompressedEdwardsY, EdwardsPoint},
     montgomery::MontgomeryPoint,
     scalar::Scalar,
