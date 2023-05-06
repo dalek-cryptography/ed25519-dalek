@@ -264,6 +264,9 @@ mod signature;
 mod signing;
 mod verifying;
 
+#[cfg(feature = "hazmat")]
+pub mod hazmat;
+
 #[cfg(feature = "digest")]
 pub use curve25519_dalek::digest::Digest;
 #[cfg(feature = "digest")]
