@@ -268,7 +268,7 @@ impl VerifyingKey {
     {
         let signature = InternalSignature::try_from(signature)?;
 
-        let expected_R = self.recompute_R::<Sha512>(None, &signature, message);
+        let expected_R = self.recompute_R::<CtxDigest>(None, &signature, message);
         if expected_R == signature.R {
             Ok(())
         } else {
@@ -277,23 +277,23 @@ impl VerifyingKey {
     }
 
     /// The prehashed non-batched Ed25519 verification check, rejecting non-canonical R values.
-    /// (see [`Self::recompute_R`]). `MsgDigest` is the digest used to hash the signed message.
-    /// `CtxDigest` is the digest used to calculate the pseudorandomness needed for signing.
-    /// According to the spec, `MsgDigest = CtxDigest = Sha512`.
+    /// (see [`Self::recompute_R`]). `CtxDigest` is the digest used to calculate the
+    /// pseudorandomness needed for signing. `MsgDigest` is the digest used to hash the signed
+    /// message. According to the spec, `MsgDigest = CtxDigest = Sha512`.
     ///
     /// This definition is loose in its parameters so that end-users of the `hazmat` module can
     /// change how the `ExpandedSecretKey` is calculated and which hash function to use.
     #[cfg(feature = "digest")]
     #[allow(non_snake_case)]
-    pub(crate) fn raw_verify_prehashed<MsgDigest, CtxDigest>(
+    pub(crate) fn raw_verify_prehashed<CtxDigest, MsgDigest>(
         &self,
         prehashed_message: MsgDigest,
         context: Option<&[u8]>,
         signature: &ed25519::Signature,
     ) -> Result<(), SignatureError>
     where
-        MsgDigest: Digest<OutputSize = U64>,
         CtxDigest: Digest<OutputSize = U64>,
+        MsgDigest: Digest<OutputSize = U64>,
     {
         let signature = InternalSignature::try_from(signature)?;
 
@@ -347,7 +347,7 @@ impl VerifyingKey {
     where
         MsgDigest: Digest<OutputSize = U64>,
     {
-        self.raw_verify_prehashed::<MsgDigest, Sha512>(prehashed_message, context, signature)
+        self.raw_verify_prehashed::<Sha512, MsgDigest>(prehashed_message, context, signature)
     }
 
     /// Strictly verify a signature on a message with this keypair's public key.

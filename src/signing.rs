@@ -309,7 +309,7 @@ impl SigningKey {
     where
         MsgDigest: Digest<OutputSize = U64>,
     {
-        ExpandedSecretKey::from(&self.secret_key).raw_sign_prehashed::<MsgDigest, Sha512>(
+        ExpandedSecretKey::from(&self.secret_key).raw_sign_prehashed::<Sha512, MsgDigest>(
             prehashed_message,
             &self.verifying_key,
             context,
@@ -767,9 +767,9 @@ impl ExpandedSecretKey {
         InternalSignature { R, s }.into()
     }
 
-    /// The prehashed signing function for Ed25519 (i.e., Ed25519ph). `MsgDigest` is the digest
-    /// function used to hash the signed message. `CtxDigest` is the digest function used to
-    /// calculate the pseudorandomness needed for signing. According to the spec, `MsgDigest =
+    /// The prehashed signing function for Ed25519 (i.e., Ed25519ph). `CtxDigest` is the digest
+    /// function used to calculate the pseudorandomness needed for signing. `MsgDigest` is the
+    /// digest function used to hash the signed message. According to the spec, `MsgDigest =
     /// CtxDigest = Sha512`, and `self` is derived via the method defined in `impl
     /// From<&SigningKey> for ExpandedSecretKey`.
     ///
@@ -778,15 +778,15 @@ impl ExpandedSecretKey {
     #[cfg(feature = "digest")]
     #[allow(non_snake_case)]
     #[inline(always)]
-    pub(crate) fn raw_sign_prehashed<'a, MsgDigest, CtxDigest>(
+    pub(crate) fn raw_sign_prehashed<'a, CtxDigest, MsgDigest>(
         &self,
         prehashed_message: MsgDigest,
         verifying_key: &VerifyingKey,
         context: Option<&'a [u8]>,
     ) -> Result<Signature, SignatureError>
     where
-        MsgDigest: Digest<OutputSize = U64>,
         CtxDigest: Digest<OutputSize = U64>,
+        MsgDigest: Digest<OutputSize = U64>,
     {
         let mut prehash: [u8; 64] = [0u8; 64];
 

@@ -146,7 +146,7 @@ where
 /// [rfc8032]: https://tools.ietf.org/html/rfc8032#section-5.1
 #[cfg(feature = "digest")]
 #[allow(non_snake_case)]
-pub fn raw_sign_prehashed<'a, MsgDigest, CtxDigest>(
+pub fn raw_sign_prehashed<'a, CtxDigest, MsgDigest>(
     esk: &ExpandedSecretKey,
     prehashed_message: MsgDigest,
     verifying_key: &VerifyingKey,
@@ -156,14 +156,14 @@ where
     MsgDigest: Digest<OutputSize = U64>,
     CtxDigest: Digest<OutputSize = U64>,
 {
-    esk.raw_sign_prehashed::<MsgDigest, CtxDigest>(prehashed_message, verifying_key, context)
+    esk.raw_sign_prehashed::<CtxDigest, MsgDigest>(prehashed_message, verifying_key, context)
 }
 
 /// The ordinary non-batched Ed25519 verification check, rejecting non-canonical R
 /// values.`CtxDigest` is the digest used to calculate the pseudorandomness needed for signing.
 /// According to the spec, `CtxDigest = Sha512`.
 pub fn raw_verify<CtxDigest>(
-    vk: VerifyingKey,
+    vk: &VerifyingKey,
     message: &[u8],
     signature: &ed25519::Signature,
 ) -> Result<(), SignatureError>
@@ -178,7 +178,7 @@ where
 /// pseudorandomness needed for signing. According to the spec, `MsgDgiest = CtxDigest = Sha512`.
 #[cfg(feature = "digest")]
 #[allow(non_snake_case)]
-pub(crate) fn raw_verify_prehashed<MsgDigest, CtxDigest>(
+pub(crate) fn raw_verify_prehashed<CtxDigest, MsgDigest>(
     vk: &VerifyingKey,
     prehashed_message: MsgDigest,
     context: Option<&[u8]>,
@@ -188,5 +188,72 @@ where
     MsgDigest: Digest<OutputSize = U64>,
     CtxDigest: Digest<OutputSize = U64>,
 {
-    vk.raw_verify_prehashed::<MsgDigest, CtxDigest>(prehashed_message, context, signature)
+    vk.raw_verify_prehashed::<CtxDigest, MsgDigest>(prehashed_message, context, signature)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    use curve25519_dalek::{digest::Digest, Scalar};
+    use rand::{rngs::OsRng, CryptoRng, RngCore};
+
+    // Pick distinct, non-spec 512-bit hash functions for message and sig-context hashing
+    type CtxDigest = blake2::Blake2b512;
+    type MsgDigest = sha3::Sha3_512;
+
+    impl ExpandedSecretKey {
+        // Make a random expanded secret key for testing purposes. This is NOT how you generate
+        // expanded secret keys IRL. They're the hash of a seed.
+        fn random<R: RngCore + CryptoRng>(mut rng: R) -> Self {
+            // The usual signing algorithm clamps its scalars
+            let scalar_bytes = [0u8; 32];
+            let scalar = Scalar::from_bits_clamped(scalar_bytes);
+
+            let mut hash_prefix = [0u8; 32];
+            rng.fill_bytes(&mut hash_prefix);
+
+            ExpandedSecretKey {
+                scalar,
+                hash_prefix,
+            }
+        }
+    }
+
+    // Check that raw_sign and raw_verify work when a non-spec CtxDigest is used
+    #[test]
+    fn sign_verify_nonspec() {
+        // Generate the keypair
+        let mut rng = OsRng;
+        let esk = ExpandedSecretKey::random(&mut rng);
+        let vk = VerifyingKey::from(&esk);
+
+        let msg = b"Then one day, a piano fell on my head";
+
+        // Sign and verify
+        let sig = raw_sign::<CtxDigest>(&esk, msg, &vk);
+        raw_verify::<CtxDigest>(&vk, msg, &sig).unwrap();
+    }
+
+    // Check that raw_sign_prehashed and raw_verify_prehashed work when distinct, non-spec
+    // MsgDigest and CtxDigest are used
+    #[test]
+    fn sign_verify_prehashed_nonspec() {
+        // Generate the keypair
+        let mut rng = OsRng;
+        let esk = ExpandedSecretKey::random(&mut rng);
+        let vk = VerifyingKey::from(&esk);
+
+        // Hash the message
+        let msg = b"And then I got trampled by a herd of buffalo";
+        let mut h = MsgDigest::new();
+        h.update(msg);
+
+        let ctx_str = &b"consequences"[..];
+
+        // Sign and verify prehashed
+        let sig = raw_sign_prehashed::<CtxDigest, MsgDigest>(&esk, h.clone(), &vk, Some(ctx_str))
+            .unwrap();
+        raw_verify_prehashed::<CtxDigest, MsgDigest>(&vk, h, Some(ctx_str), &sig).unwrap();
+    }
 }
