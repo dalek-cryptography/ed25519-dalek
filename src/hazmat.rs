@@ -8,6 +8,11 @@
 //! Failure to use them correctly can lead to catastrophic failures including **full private key
 //! recovery.**
 
+// Permit dead code because 1) this module is only public when the `hazmat` feature is set, and 2)
+// even without `hazmat` we still need this module because this is where `ExpandedSecretKey` is
+// defined.
+#![allow(dead_code)]
+
 use crate::{InternalError, SignatureError};
 
 use curve25519_dalek::Scalar;
@@ -96,9 +101,8 @@ impl ExpandedSecretKey {
 /// Do NOT use this function unless you absolutely must. Using the wrong values in
 /// `ExpandedSecretKey` can leak your signing key. See
 /// [here](https://github.com/MystenLabs/ed25519-unsafe-libs) for more details on this attack.
-#[cfg(feature = "hazmat")]
 pub fn raw_sign<CtxDigest>(
-    esk: ExpandedSecretKey,
+    esk: &ExpandedSecretKey,
     message: &[u8],
     verifying_key: &VerifyingKey,
 ) -> Signature
@@ -140,10 +144,10 @@ where
 /// a `SignatureError`.
 ///
 /// [rfc8032]: https://tools.ietf.org/html/rfc8032#section-5.1
-#[cfg(all(feature = "hazmat", feature = "digest"))]
+#[cfg(feature = "digest")]
 #[allow(non_snake_case)]
 pub fn raw_sign_prehashed<'a, MsgDigest, CtxDigest>(
-    esk: ExpandedSecretKey,
+    esk: &ExpandedSecretKey,
     prehashed_message: MsgDigest,
     verifying_key: &VerifyingKey,
     context: Option<&'a [u8]>,
@@ -153,4 +157,18 @@ where
     CtxDigest: Digest<OutputSize = U64>,
 {
     esk.raw_sign_prehashed::<MsgDigest, CtxDigest>(prehashed_message, verifying_key, context)
+}
+
+/// The ordinary non-batched Ed25519 verification check, rejecting non-canonical R
+/// values.`CtxDigest` is the digest used to calculate the pseudorandomness needed for signing.
+/// According to the spec, `CtxDigest = Sha512`.
+pub fn raw_verify<CtxDigest>(
+    vk: VerifyingKey,
+    message: &[u8],
+    signature: &ed25519::Signature,
+) -> Result<(), SignatureError>
+where
+    CtxDigest: Digest<OutputSize = U64>,
+{
+    vk.raw_verify::<CtxDigest>(message, signature)
 }
