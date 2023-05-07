@@ -21,9 +21,7 @@ use curve25519_dalek::Scalar;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 // These are used in the functions that are made public when the hazmat feature is set
-#[cfg(feature = "hazmat")]
 use crate::{Signature, VerifyingKey};
-#[cfg(feature = "hazmat")]
 use curve25519_dalek::digest::{generic_array::typenum::U64, Digest};
 
 /// Contains the secret scalar and domain separator used for generating signatures.
@@ -178,7 +176,7 @@ where
 /// pseudorandomness needed for signing. According to the spec, `MsgDgiest = CtxDigest = Sha512`.
 #[cfg(feature = "digest")]
 #[allow(non_snake_case)]
-pub(crate) fn raw_verify_prehashed<CtxDigest, MsgDigest>(
+pub fn raw_verify_prehashed<CtxDigest, MsgDigest>(
     vk: &VerifyingKey,
     prehashed_message: MsgDigest,
     context: Option<&[u8]>,
@@ -195,7 +193,7 @@ where
 mod test {
     use super::*;
 
-    use curve25519_dalek::{digest::Digest, Scalar};
+    use curve25519_dalek::Scalar;
     use rand::{rngs::OsRng, CryptoRng, RngCore};
 
     // Pick distinct, non-spec 512-bit hash functions for message and sig-context hashing
@@ -237,8 +235,11 @@ mod test {
 
     // Check that raw_sign_prehashed and raw_verify_prehashed work when distinct, non-spec
     // MsgDigest and CtxDigest are used
+    #[cfg(feature = "digest")]
     #[test]
     fn sign_verify_prehashed_nonspec() {
+        use cureve25519_dalek::digest::Digest;
+
         // Generate the keypair
         let mut rng = OsRng;
         let esk = ExpandedSecretKey::random(&mut rng);
