@@ -172,3 +172,21 @@ where
 {
     vk.raw_verify::<CtxDigest>(message, signature)
 }
+
+/// The batched Ed25519 verification check, rejecting non-canonical R values. `MsgDigest` is the
+/// digest used to hash the signed message. `CtxDigest` is the digest used to calculate the
+/// pseudorandomness needed for signing. According to the spec, `MsgDgiest = CtxDigest = Sha512`.
+#[cfg(feature = "digest")]
+#[allow(non_snake_case)]
+pub(crate) fn raw_verify_prehashed<MsgDigest, CtxDigest>(
+    vk: &VerifyingKey,
+    prehashed_message: MsgDigest,
+    context: Option<&[u8]>,
+    signature: &ed25519::Signature,
+) -> Result<(), SignatureError>
+where
+    MsgDigest: Digest<OutputSize = U64>,
+    CtxDigest: Digest<OutputSize = U64>,
+{
+    vk.raw_verify_prehashed::<MsgDigest, CtxDigest>(prehashed_message, context, signature)
+}
