@@ -238,7 +238,7 @@ mod test {
     #[cfg(feature = "digest")]
     #[test]
     fn sign_verify_prehashed_nonspec() {
-        use cureve25519_dalek::digest::Digest;
+        use curve25519_dalek::digest::Digest;
 
         // Generate the keypair
         let mut rng = OsRng;
