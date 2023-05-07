@@ -731,8 +731,8 @@ impl From<&SecretKey> for ExpandedSecretKey {
 //
 
 impl ExpandedSecretKey {
-    /// The plain, non-prehashed, signing function for Ed25519. `SigDigest` is the digest used to
-    /// calculate the pseudorandomness needed for signing. According to the spec, `SigDigest =
+    /// The plain, non-prehashed, signing function for Ed25519. `CtxDigest` is the digest used to
+    /// calculate the pseudorandomness needed for signing. According to the spec, `CtxDigest =
     /// Sha512`, and `self` is derived via the method defined in `impl From<&SigningKey> for
     /// ExpandedSecretKey`.
     ///
@@ -740,15 +740,15 @@ impl ExpandedSecretKey {
     /// change how the `ExpandedSecretKey` is calculated and which hash function to use.
     #[allow(non_snake_case)]
     #[inline(always)]
-    pub(crate) fn raw_sign<SigDigest>(
+    pub(crate) fn raw_sign<CtxDigest>(
         &self,
         message: &[u8],
         verifying_key: &VerifyingKey,
     ) -> Signature
     where
-        SigDigest: Digest<OutputSize = U64>,
+        CtxDigest: Digest<OutputSize = U64>,
     {
-        let mut h = SigDigest::new();
+        let mut h = CtxDigest::new();
 
         h.update(self.hash_prefix);
         h.update(message);
@@ -756,7 +756,7 @@ impl ExpandedSecretKey {
         let r = Scalar::from_hash(h);
         let R: CompressedEdwardsY = EdwardsPoint::mul_base(&r).compress();
 
-        h = SigDigest::new();
+        h = CtxDigest::new();
         h.update(R.as_bytes());
         h.update(verifying_key.as_bytes());
         h.update(message);
@@ -768,17 +768,17 @@ impl ExpandedSecretKey {
     }
 
     /// The prehashed signing function for Ed25519 (i.e., Ed25519ph). `MsgDigest` is the digest
-    /// function used to hash the signed message. `SigDigest` is the digest function used to
+    /// function used to hash the signed message. `CtxDigest` is the digest function used to
     /// calculate the pseudorandomness needed for signing. According to the spec, `MsgDigest =
-    /// SigDigest = Sha512`, and `self` is derived via the method defined in `impl
+    /// CtxDigest = Sha512`, and `self` is derived via the method defined in `impl
     /// From<&SigningKey> for ExpandedSecretKey`.
     ///
     /// This definition is loose in its parameters so that end-users of the `hazmat` module can
-    /// change how the `ExpandedSecretKey` is calculated and which `SigDigest` function to use.
+    /// change how the `ExpandedSecretKey` is calculated and which `CtxDigest` function to use.
     #[cfg(feature = "digest")]
     #[allow(non_snake_case)]
     #[inline(always)]
-    pub(crate) fn raw_sign_prehashed<'a, MsgDigest, SigDigest>(
+    pub(crate) fn raw_sign_prehashed<'a, MsgDigest, CtxDigest>(
         &self,
         prehashed_message: MsgDigest,
         verifying_key: &VerifyingKey,
@@ -786,7 +786,7 @@ impl ExpandedSecretKey {
     ) -> Result<Signature, SignatureError>
     where
         MsgDigest: Digest<OutputSize = U64>,
-        SigDigest: Digest<OutputSize = U64>,
+        CtxDigest: Digest<OutputSize = U64>,
     {
         let mut prehash: [u8; 64] = [0u8; 64];
 
@@ -813,7 +813,7 @@ impl ExpandedSecretKey {
         //
         // This is a really fucking stupid bandaid, and the damned scheme is
         // still bleeding from malleability, for fuck's sake.
-        let mut h = SigDigest::new()
+        let mut h = CtxDigest::new()
             .chain_update(b"SigEd25519 no Ed25519 collisions")
             .chain_update([1]) // Ed25519ph
             .chain_update([ctx_len])
@@ -824,7 +824,7 @@ impl ExpandedSecretKey {
         let r = Scalar::from_hash(h);
         let R: CompressedEdwardsY = EdwardsPoint::mul_base(&r).compress();
 
-        h = SigDigest::new()
+        h = CtxDigest::new()
             .chain_update(b"SigEd25519 no Ed25519 collisions")
             .chain_update([1]) // Ed25519ph
             .chain_update([ctx_len])

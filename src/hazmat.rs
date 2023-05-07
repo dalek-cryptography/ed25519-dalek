@@ -88,7 +88,7 @@ impl ExpandedSecretKey {
     }
 }
 
-/// Compute an ordinary Ed25519 signature over the given message. `SigDigest` is the digest used to
+/// Compute an ordinary Ed25519 signature over the given message. `CtxDigest` is the digest used to
 /// calculate the pseudorandomness needed for signing. This is SHA-512 in Ed25519.
 ///
 /// # ⚠️  Unsafe
@@ -97,20 +97,20 @@ impl ExpandedSecretKey {
 /// `ExpandedSecretKey` can leak your signing key. See
 /// [here](https://github.com/MystenLabs/ed25519-unsafe-libs) for more details on this attack.
 #[cfg(feature = "hazmat")]
-pub fn raw_sign<SigDigest>(
+pub fn raw_sign<CtxDigest>(
     esk: ExpandedSecretKey,
     message: &[u8],
     verifying_key: &VerifyingKey,
 ) -> Signature
 where
-    SigDigest: Digest<OutputSize = U64>,
+    CtxDigest: Digest<OutputSize = U64>,
 {
-    esk.raw_sign::<SigDigest>(message, verifying_key)
+    esk.raw_sign::<CtxDigest>(message, verifying_key)
 }
 
 /// Compute a signature over the given prehashed message, the Ed25519ph algorithm defined in
 /// [RFC8032 §5.1][rfc8032]. `MsgDigest` is the digest function used to hash the signed message.
-/// `SigDigest` is the digest function used to calculate the pseudorandomness needed for signing.
+/// `CtxDigest` is the digest function used to calculate the pseudorandomness needed for signing.
 /// These are both SHA-512 in Ed25519.
 ///
 /// # ⚠️  Unsafe
@@ -142,7 +142,7 @@ where
 /// [rfc8032]: https://tools.ietf.org/html/rfc8032#section-5.1
 #[cfg(all(feature = "hazmat", feature = "digest"))]
 #[allow(non_snake_case)]
-pub fn raw_sign_prehashed<'a, MsgDigest, SigDigest>(
+pub fn raw_sign_prehashed<'a, MsgDigest, CtxDigest>(
     esk: ExpandedSecretKey,
     prehashed_message: MsgDigest,
     verifying_key: &VerifyingKey,
@@ -150,7 +150,7 @@ pub fn raw_sign_prehashed<'a, MsgDigest, SigDigest>(
 ) -> Result<Signature, SignatureError>
 where
     MsgDigest: Digest<OutputSize = U64>,
-    SigDigest: Digest<OutputSize = U64>,
+    CtxDigest: Digest<OutputSize = U64>,
 {
-    esk.raw_sign_prehashed::<MsgDigest, SigDigest>(prehashed_message, verifying_key, context)
+    esk.raw_sign_prehashed::<MsgDigest, CtxDigest>(prehashed_message, verifying_key, context)
 }
