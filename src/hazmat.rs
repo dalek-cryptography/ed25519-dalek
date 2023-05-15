@@ -13,7 +13,7 @@
 // defined.
 #![allow(dead_code)]
 
-use crate::{InternalError, SignatureError};
+use crate::SignatureError;
 
 use curve25519_dalek::Scalar;
 
@@ -64,30 +64,18 @@ impl ExpandedSecretKey {
         bytes
     }
 
-    /// Construct an `ExpandedSecretKey` from a slice of bytes.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` whose okay value is an EdDSA `ExpandedSecretKey` or whose error value is an
-    /// `SignatureError` describing the error that occurred.
-    pub fn from_bytes(bytes: &[u8]) -> Result<ExpandedSecretKey, SignatureError> {
-        if bytes.len() != 64 {
-            return Err(InternalError::BytesLength {
-                name: "ExpandedSecretKey",
-                length: 64,
-            }
-            .into());
-        }
+    /// Construct an `ExpandedSecretKey` from an array of 64 bytes.
+    pub fn from_bytes(bytes: &[u8; 64]) -> Self {
         let mut lower: [u8; 32] = [0u8; 32];
         let mut upper: [u8; 32] = [0u8; 32];
 
         lower.copy_from_slice(&bytes[00..32]);
         upper.copy_from_slice(&bytes[32..64]);
 
-        Ok(ExpandedSecretKey {
+        ExpandedSecretKey {
             scalar: Scalar::from_bytes_mod_order(lower),
             hash_prefix: upper,
-        })
+        }
     }
 }
 
