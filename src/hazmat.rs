@@ -86,14 +86,16 @@ impl ExpandedSecretKey {
     /// A `Result` whose okay value is an EdDSA `ExpandedSecretKey` or whose error value is an
     /// `SignatureError` describing the error that occurred, namely that the given slice's length
     /// is not 64.
+    #[allow(clippy::unwrap_used)]
     pub fn from_slice(bytes: &[u8]) -> Result<Self, SignatureError> {
         if bytes.len() != 64 {
-            return Err(InternalError::BytesLength {
+            Err(InternalError::BytesLength {
                 name: "ExpandedSecretKey",
                 length: 64,
             }
-            .into());
+            .into())
         } else {
+            // If the input is 64 bytes long, coerce it to a 64-byte array
             Ok(Self::from_bytes(bytes.try_into().unwrap()))
         }
     }
