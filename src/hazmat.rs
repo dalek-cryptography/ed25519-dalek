@@ -13,7 +13,7 @@
 // defined.
 #![allow(dead_code)]
 
-use crate::SignatureError;
+use crate::{InternalError, SignatureError};
 
 use curve25519_dalek::Scalar;
 
@@ -77,6 +77,33 @@ impl ExpandedSecretKey {
             scalar: Scalar::from_bytes_mod_order(lower),
             hash_prefix: upper,
         }
+    }
+
+    /// Construct an `ExpandedSecretKey` from a slice of 64 bytes.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` whose okay value is an EdDSA `ExpandedSecretKey` or whose error value is an
+    /// `SignatureError` describing the error that occurred, namely that the given slice's length
+    /// is not 64.
+    pub fn from_slice(bytes: &[u8]) -> Result<Self, SignatureError> {
+        if bytes.len() != 64 {
+            return Err(InternalError::BytesLength {
+                name: "ExpandedSecretKey",
+                length: 64,
+            }
+            .into());
+        } else {
+            Ok(Self::from_bytes(bytes.try_into().unwrap()))
+        }
+    }
+}
+
+impl TryFrom<&[u8]> for ExpandedSecretKey {
+    type Error = SignatureError;
+
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+        Self::from_slice(bytes)
     }
 }
 
