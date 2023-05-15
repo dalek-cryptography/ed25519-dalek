@@ -81,7 +81,8 @@ impl ExpandedSecretKey {
 }
 
 /// Compute an ordinary Ed25519 signature over the given message. `CtxDigest` is the digest used to
-/// calculate the pseudorandomness needed for signing. This is SHA-512 in Ed25519.
+/// calculate the pseudorandomness needed for signing. According to the Ed25519 spec, `CtxDigest =
+/// Sha512`.
 ///
 /// # ⚠️  Unsafe
 ///
@@ -102,7 +103,7 @@ where
 /// Compute a signature over the given prehashed message, the Ed25519ph algorithm defined in
 /// [RFC8032 §5.1][rfc8032]. `MsgDigest` is the digest function used to hash the signed message.
 /// `CtxDigest` is the digest function used to calculate the pseudorandomness needed for signing.
-/// These are both SHA-512 in Ed25519.
+/// According to the Ed25519 spec, `MsgDigest = CtxDigest = Sha512`.
 ///
 /// # ⚠️  Unsafe
 //
@@ -112,7 +113,7 @@ where
 ///
 /// # Inputs
 ///
-/// * `sk` is the [`ExpandedSecretKey`] being used for signing
+/// * `esk` is the [`ExpandedSecretKey`] being used for signing
 /// * `prehashed_message` is an instantiated hash digest with 512-bits of
 ///   output which has had the message to be signed previously fed into its
 ///   state.
@@ -148,7 +149,7 @@ where
 
 /// The ordinary non-batched Ed25519 verification check, rejecting non-canonical R
 /// values.`CtxDigest` is the digest used to calculate the pseudorandomness needed for signing.
-/// According to the spec, `CtxDigest = Sha512`.
+/// According to the Ed25519 spec, `CtxDigest = Sha512`.
 pub fn raw_verify<CtxDigest>(
     vk: &VerifyingKey,
     message: &[u8],
@@ -162,7 +163,8 @@ where
 
 /// The batched Ed25519 verification check, rejecting non-canonical R values. `MsgDigest` is the
 /// digest used to hash the signed message. `CtxDigest` is the digest used to calculate the
-/// pseudorandomness needed for signing. According to the spec, `MsgDgiest = CtxDigest = Sha512`.
+/// pseudorandomness needed for signing. According to the Ed25519 spec, `MsgDigest = CtxDigest =
+/// Sha512`.
 #[cfg(feature = "digest")]
 #[allow(non_snake_case)]
 pub fn raw_verify_prehashed<CtxDigest, MsgDigest>(
