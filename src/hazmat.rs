@@ -66,6 +66,7 @@ impl ExpandedSecretKey {
 
     /// Construct an `ExpandedSecretKey` from an array of 64 bytes.
     pub fn from_bytes(bytes: &[u8; 64]) -> Self {
+        // TODO: Use bytes.split_array_ref once it’s in MSRV.
         let mut lower: [u8; 32] = [0u8; 32];
         let mut upper: [u8; 32] = [0u8; 32];
 
