@@ -263,6 +263,7 @@ mod errors;
 mod signature;
 mod signing;
 mod verifying;
+mod streaming_verifying;
 
 #[cfg(feature = "hazmat")]
 pub mod hazmat;

@@ -42,6 +42,7 @@ use crate::{
     signature::InternalSignature,
     signing::SigningKey,
 };
+use crate::streaming_verifying::StreamingVerifier;
 
 /// An ed25519 public key.
 ///
@@ -434,6 +435,18 @@ impl VerifyingKey {
         } else {
             Err(InternalError::Verify.into())
         }
+    }
+
+    /// Constructs stream verifier with candidate `signature`.
+    ///
+    /// Useful for cases where the whole message is not available
+    /// all at once, allowing the internal signature state to be updated
+    /// incrementally and verified at the end. In some cases,
+    /// this will reduce the need for additional allocations.
+    pub fn verify_streaming(&self, signature: &ed25519::Signature) -> Result<StreamingVerifier, SignatureError> {
+        // TODO: ensure that check_scalar is run
+        //       this is normally done via Signature -> InternalSignature
+        Ok(StreamingVerifier::new(*self, *signature))
     }
 
     /// Verify a `signature` on a `prehashed_message` using the Ed25519ph algorithm,
