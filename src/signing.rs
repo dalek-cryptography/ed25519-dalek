@@ -44,6 +44,7 @@ use crate::{
     verifying::VerifyingKey,
     Signature,
 };
+use crate::streaming_verifying::StreamingVerifier;
 
 /// ed25519 secret key as defined in [RFC8032 § 5.1.5]:
 ///
@@ -471,6 +472,13 @@ impl SigningKey {
         signature: &Signature,
     ) -> Result<(), SignatureError> {
         self.verifying_key.verify_strict(message, signature)
+    }
+
+    /// Constructs stream verifier with candidate `signature`.
+    ///
+    /// See [`VerifyingKey::verify_streaming`] for more details.
+    pub fn verify_streaming(&self, signature: &ed25519::Signature) -> Result<StreamingVerifier, SignatureError> {
+        self.verifying_key.verify_streaming(signature)
     }
 
     /// Convert this signing key into a Curve25519 scalar.
