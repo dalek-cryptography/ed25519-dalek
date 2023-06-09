@@ -69,17 +69,15 @@ impl ExpandedSecretKey {
     }
 
     /// Construct an `ExpandedSecretKey` from an array of 64 bytes.
+    #[allow(clippy::unwrap_used)]
     pub fn from_bytes(bytes: &[u8; 64]) -> Self {
         // TODO: Use bytes.split_array_ref once it’s in MSRV.
-        let mut lower: [u8; 32] = [0u8; 32];
-        let mut upper: [u8; 32] = [0u8; 32];
+        let (lower, upper) = bytes.split_at(32);
 
-        lower.copy_from_slice(&bytes[00..32]);
-        upper.copy_from_slice(&bytes[32..64]);
-
-        // The try_into here converts to fixed-size array
-        // The lower bytes are the scalar. The try_into here converts to fixed-size array
+        // Convert the slices to [u8; 32]
         let scalar_bytes = lower.try_into().unwrap();
+        let hash_prefix = upper.try_into().unwrap();
+
         // For signing, we'll need the integer, clamped, and converted to a Scalar. See
         // PureEdDSA.keygen in RFC 8032 Appendix A.
         let scalar = Scalar::from_bytes_mod_order(clamp_integer(scalar_bytes));
@@ -87,7 +85,7 @@ impl ExpandedSecretKey {
         ExpandedSecretKey {
             scalar_bytes,
             scalar,
-            hash_prefix: upper.try_into().unwrap(),
+            hash_prefix,
         }
     }
 
