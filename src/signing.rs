@@ -20,10 +20,8 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use sha2::Sha512;
 
-#[cfg(feature = "digest")]
-use curve25519_dalek::digest::generic_array::typenum::U64;
 use curve25519_dalek::{
-    digest::Digest,
+    digest::{generic_array::typenum::U64, Digest},
     edwards::{CompressedEdwardsY, EdwardsPoint},
     scalar::{clamp_integer, Scalar},
 };
