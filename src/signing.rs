@@ -23,7 +23,7 @@ use sha2::Sha512;
 use curve25519_dalek::{
     digest::{generic_array::typenum::U64, Digest},
     edwards::{CompressedEdwardsY, EdwardsPoint},
-    scalar::{clamp_integer, Scalar},
+    scalar::Scalar,
 };
 
 use ed25519::signature::{KeypairRef, Signer, Verifier};
@@ -726,20 +726,7 @@ impl From<&SecretKey> for ExpandedSecretKey {
     #[allow(clippy::unwrap_used)]
     fn from(secret_key: &SecretKey) -> ExpandedSecretKey {
         let hash = Sha512::default().chain_update(secret_key).finalize();
-        // TODO: Use bytes.split_array_ref once it’s in MSRV.
-        let (lower, upper) = hash.split_at(32);
-
-        // The lower bytes are the scalar. The try_into here converts to fixed-size array
-        let scalar_bytes = lower.try_into().unwrap();
-        // For signing, we'll need the integer, clamped, and converted to a Scalar. See
-        // PureEdDSA.keygen in RFC 8032 Appendix A.
-        let scalar = Scalar::from_bytes_mod_order(clamp_integer(scalar_bytes));
-
-        ExpandedSecretKey {
-            scalar_bytes,
-            scalar,
-            hash_prefix: upper.try_into().unwrap(),
-        }
+        ExpandedSecretKey::from_bytes(hash.as_ref())
     }
 }
 

@@ -66,7 +66,7 @@ fast = ["curve25519-dalek/precomputed-tables"]
 digest = ["signature/digest"]
 # Exposes the hazmat module
 hazmat = []
-# This features turns off stricter checking for scalar malleability in signatures
+# Turns off stricter checking for scalar malleability in signatures
 legacy_compatibility = ["curve25519-dalek/legacy_compatibility"]
 pkcs8 = ["ed25519/pkcs8"]
 pem = ["alloc", "ed25519/pem", "pkcs8"]

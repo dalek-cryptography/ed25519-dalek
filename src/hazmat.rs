@@ -68,7 +68,9 @@ impl ExpandedSecretKey {
         bytes
     }
 
-    /// Construct an `ExpandedSecretKey` from an array of 64 bytes.
+    /// Construct an `ExpandedSecretKey` from an array of 64 bytes. In the spec, the bytes are the
+    /// output of a SHA-512 hash. This clamps the first 32 bytes and uses it as a scalar, and uses
+    /// the second 32 bytes as a domain separator for hashing.
     #[allow(clippy::unwrap_used)]
     pub fn from_bytes(bytes: &[u8; 64]) -> Self {
         // TODO: Use bytes.split_array_ref once it’s in MSRV.
@@ -223,7 +225,6 @@ where
 mod test {
     use super::*;
 
-    use curve25519_dalek::Scalar;
     use rand::{rngs::OsRng, CryptoRng, RngCore};
 
     // Pick distinct, non-spec 512-bit hash functions for message and sig-context hashing
@@ -234,19 +235,9 @@ mod test {
         // Make a random expanded secret key for testing purposes. This is NOT how you generate
         // expanded secret keys IRL. They're the hash of a seed.
         fn random<R: RngCore + CryptoRng>(mut rng: R) -> Self {
-            // The usual signing algorithm clamps its scalars
-            let mut scalar_bytes = [0u8; 32];
-            rng.fill_bytes(&mut scalar_bytes);
-            let scalar = Scalar::from_bytes_mod_order(clamp_integer(scalar_bytes));
-
-            let mut hash_prefix = [0u8; 32];
-            rng.fill_bytes(&mut hash_prefix);
-
-            ExpandedSecretKey {
-                scalar_bytes,
-                scalar,
-                hash_prefix,
-            }
+            let mut bytes = [0u8; 64];
+            rng.fill_bytes(&mut bytes);
+            ExpandedSecretKey::from_bytes(&bytes)
         }
     }
 
