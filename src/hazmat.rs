@@ -71,14 +71,12 @@ impl ExpandedSecretKey {
     /// Construct an `ExpandedSecretKey` from an array of 64 bytes. In the spec, the bytes are the
     /// output of a SHA-512 hash. This clamps the first 32 bytes and uses it as a scalar, and uses
     /// the second 32 bytes as a domain separator for hashing.
-    #[allow(clippy::unwrap_used)]
     pub fn from_bytes(bytes: &[u8; 64]) -> Self {
         // TODO: Use bytes.split_array_ref once it’s in MSRV.
-        let (lower, upper) = bytes.split_at(32);
-
-        // Convert the slices to [u8; 32]
-        let scalar_bytes = lower.try_into().unwrap();
-        let hash_prefix = upper.try_into().unwrap();
+        let mut scalar_bytes: [u8; 32] = [0u8; 32];
+        let mut hash_prefix: [u8; 32] = [0u8; 32];
+        scalar_bytes.copy_from_slice(&bytes[00..32]);
+        hash_prefix.copy_from_slice(&bytes[32..64]);
 
         // For signing, we'll need the integer, clamped, and converted to a Scalar. See
         // PureEdDSA.keygen in RFC 8032 Appendix A.
@@ -98,18 +96,15 @@ impl ExpandedSecretKey {
     /// A `Result` whose okay value is an EdDSA `ExpandedSecretKey` or whose error value is an
     /// `SignatureError` describing the error that occurred, namely that the given slice's length
     /// is not 64.
-    #[allow(clippy::unwrap_used)]
     pub fn from_slice(bytes: &[u8]) -> Result<Self, SignatureError> {
-        if bytes.len() != 64 {
-            Err(InternalError::BytesLength {
+        // Try to coerce bytes to a [u8; 64]
+        bytes.try_into().map(|b| Self::from_bytes(b)).map_err(|_| {
+            InternalError::BytesLength {
                 name: "ExpandedSecretKey",
                 length: 64,
             }
-            .into())
-        } else {
-            // If the input is 64 bytes long, coerce it to a 64-byte array
-            Ok(Self::from_bytes(bytes.try_into().unwrap()))
-        }
+            .into()
+        })
     }
 }
 

@@ -148,13 +148,17 @@ impl InternalSignature {
     /// only checking the most significant three bits.  (See also the
     /// documentation for [`crate::VerifyingKey::verify_strict`].)
     #[inline]
-    #[allow(clippy::unwrap_used)]
+    #[allow(non_snake_case)]
     pub fn from_bytes(bytes: &[u8; SIGNATURE_LENGTH]) -> Result<InternalSignature, SignatureError> {
         // TODO: Use bytes.split_array_ref once it’s in MSRV.
-        let (lower, upper) = bytes.split_at(32);
+        let mut R_bytes: [u8; 32] = [0u8; 32];
+        let mut s_bytes: [u8; 32] = [0u8; 32];
+        R_bytes.copy_from_slice(&bytes[00..32]);
+        s_bytes.copy_from_slice(&bytes[32..64]);
+
         Ok(InternalSignature {
-            R: CompressedEdwardsY(lower.try_into().unwrap()),
-            s: check_scalar(upper.try_into().unwrap())?,
+            R: CompressedEdwardsY(R_bytes),
+            s: check_scalar(s_bytes)?,
         })
     }
 }
