@@ -98,7 +98,7 @@ impl ExpandedSecretKey {
     /// is not 64.
     pub fn from_slice(bytes: &[u8]) -> Result<Self, SignatureError> {
         // Try to coerce bytes to a [u8; 64]
-        bytes.try_into().map(|b| Self::from_bytes(b)).map_err(|_| {
+        bytes.try_into().map(Self::from_bytes).map_err(|_| {
             InternalError::BytesLength {
                 name: "ExpandedSecretKey",
                 length: 64,
