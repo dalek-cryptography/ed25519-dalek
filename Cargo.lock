@@ -313,6 +313,7 @@ dependencies = [
  "sha2",
  "sha3",
  "signature",
+ "subtle",
  "toml",
  "zeroize",
 ]
