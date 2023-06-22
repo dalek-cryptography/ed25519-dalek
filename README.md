@@ -18,7 +18,7 @@ ed25519-dalek = "1"
 To use the latest prerelease (see changes [below](#breaking-changes-in-200)),
 use the following line in your project's `Cargo.toml`:
 ```toml
-ed25519-dalek = "2.0.0-rc.2"
+ed25519-dalek = "2.0.0-rc.3"
 ```
 
 # Feature Flags
