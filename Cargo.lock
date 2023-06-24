@@ -1010,8 +1010,3 @@ dependencies = [
  "syn 1.0.107",
  "synstructure",
 ]
-
-[[patch.unused]]
-name = "curve25519-dalek"
-version = "4.0.0-rc.2"
-source = "git+https://github.com/dalek-cryptography/curve25519-dalek.git?rev=f460ae149b0000695205cc78f560d74a2d3918eb#f460ae149b0000695205cc78f560d74a2d3918eb"
