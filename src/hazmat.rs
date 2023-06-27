@@ -271,7 +271,7 @@ mod test {
 
         verifying_key
             .verify_strict(message, &another_signature)
-            .expect("We should be able to verify a if we cloned the expanded secret key");
+            .expect("We should be able to verify a signature if we cloned the expanded secret key");
     }
 
     #[test]
