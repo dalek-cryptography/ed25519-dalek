@@ -1,3 +1,11 @@
+# ARCHIVED
+
+This repo has been [moved](https://github.com/dalek-cryptography/curve25519-dalek). Please direct all issues and pull requests to the new repo.
+
+This repo will remain here in a read-only state for historical purposes.
+
+---
+
 # ed25519-dalek [![](https://img.shields.io/crates/v/ed25519-dalek.svg)](https://crates.io/crates/ed25519-dalek) [![](https://docs.rs/ed25519-dalek/badge.svg)](https://docs.rs/ed25519-dalek) [![Rust](https://github.com/dalek-cryptography/ed25519-dalek/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/dalek-cryptography/ed25519-dalek/actions/workflows/rust.yml)
 
 Fast and efficient Rust implementation of ed25519 key generation, signing, and
