@@ -240,3 +240,18 @@ pub fn verify_batch(
         Err(InternalError::Verify.into())
     }
 }
+
+#[test]
+fn verify_batch_not_flaky_on_empty_input() {
+    for _ in 0..100 {
+        match
+            verify_batch(
+                &[&[]],
+                &[Signature::from_bytes(&[0u8; 64]).unwrap()],
+                &[PublicKey::from_bytes(&[0u8; 32]).unwrap()],
+            ) {
+            Ok(_) => panic!("Successfully verified empty message with empty signature and empty public"),
+            Err(_) => continue,
+        }
+    }
+}
