@@ -49,7 +49,7 @@ This crate is `#[no_std]` compatible with `default-features = false`.
 
 # Major Changes
 
-See [CHANGELOG.md](CHANGELOG.md) for a list of changes made in past version of this crate.
+See [CHANGELOG.md](CHANGELOG.md) for a list of changes made in past versions of this crate.
 
 ## Breaking Changes in 2.0.0
 
@@ -63,7 +63,7 @@ See [CHANGELOG.md](CHANGELOG.md) for a list of changes made in past version of t
 * Make all batch verification deterministic remove `batch_deterministic` ([#256](https://github.com/dalek-cryptography/ed25519-dalek/pull/256))
 * Remove `ExpandedSecretKey` API ((#205)[https://github.com/dalek-cryptography/ed25519-dalek/pull/205])
 * Rename `Keypair` → `SigningKey` and `PublicKey` → `VerifyingKey`
-* Make `hazmat` feature to expose, `ExpandedSecretKey`, `raw_sign()`, `raw_sign_prehashed()`, `raw_verify()`, and `raw_verify_prehashed()`
+* Make `hazmat` feature to expose `ExpandedSecretKey`, `raw_sign()`, `raw_sign_prehashed()`, `raw_verify()`, and `raw_verify_prehashed()`
 
 # Documentation
 
@@ -115,7 +115,7 @@ export RUSTFLAGS='-C target_cpu=native'
 cargo +nightly bench --features "batch"
 ```
 
-On an Intel 10700K running at stock comparing between the `curve25519-dalek` backends.
+On an Intel 10700K running at stock, comparing the `curve25519-dalek` backends.
 
 | Benchmark                       | u64       | simd +avx2         | fiat               |
 | :---                            | :----     | :---               | :---               |
@@ -152,7 +152,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md)
 
 # Batch Signature Verification
 
-The standard variants of batch signature verification (i.e. many signatures made with potentially many different public keys over potentially many different messages) is available via the `batch` feature. It uses deterministic randomness, i.e., it hashes the inputs (using [`merlin`](https://merlin.cool/), which handles transcript item separation) and uses the result to generate random coefficients. Batch verification requires allocation, so this won't function in heapless settings.
+The standard variants of batch signature verification (i.e. many signatures made with potentially many different public keys over potentially many different messages) are available via the `batch` feature. It uses deterministic randomness, i.e., it hashes the inputs (using [`merlin`](https://merlin.cool/), which handles transcript item separation) and uses the result to generate random coefficients. Batch verification requires allocation, so this won't function in heapless settings.
 
 # Validation Criteria
 
